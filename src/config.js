@@ -44,6 +44,17 @@ const config = {
 		// Refresh every 10 minutes by default
 		refreshIntervalMs: parseInt(process.env.PRICE_REFRESH_MS) || 10 * 60 * 1000,
 	},
+
+	// Tracking configuration
+	tracking: {
+		enabled: process.env.TRACKING_ENABLED !== "false", // default true
+		entryDelayMs: parseInt(process.env.TRACKING_ENTRY_DELAY_MS || "2000"), // 2s realistic entry delay
+		inactivityMs: parseInt(process.env.TRACKING_INACTIVITY_MS || "600000"), // 10 min
+		maxWindowMs: parseInt(process.env.TRACKING_MAX_WINDOW_MS || "1200000"), // 20 min
+		logDir: process.env.TRACKING_LOG_DIR || "tracking",
+		// optional TP for future use
+		tpPct: parseFloat(process.env.TRACKING_TP_PCT || "20"),
+	},
 };
 
 export default config;
