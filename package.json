@@ -1,0 +1,36 @@
+{
+  "name": "pumpportal-ws-analyze",
+  "version": "1.0.0",
+  "description": "PumpPortal WebSocket analyzer that monitors new tokens and detects when creators sell their tokens",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "status": "node status-client.js",
+    "test": "echo \"No tests specified\" && exit 0",
+    "lint": "echo \"No linter configured\" && exit 0"
+  },
+  "keywords": [
+    "pumpportal",
+    "pump.fun",
+    "solana",
+    "websocket",
+    "token-monitor",
+    "creator-sell-detection"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "dependencies": {
+    "dotenv": "^17.2.2",
+    "moment-timezone": "^0.6.0",
+    "winston": "^3.17.0",
+    "ws": "^8.18.3"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
