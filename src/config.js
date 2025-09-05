@@ -12,6 +12,12 @@ const config = {
 	logging: {
 		level: process.env.LOG_LEVEL || "info",
 		timezone: process.env.LOG_TIMEZONE || "Europe/Madrid",
+		trade: {
+			// Reduce log volume for trades without losing visibility
+			sampleEvery: parseInt(process.env.TRADE_LOG_SAMPLE_EVERY || "0"), // 0 or 1 disables sampling
+			throttleMs: parseInt(process.env.TRADE_LOG_THROTTLE_MS || "0"), // 0 disables throttling
+			suppressPumpWsTradeProcessingLog: process.env.SUPPRESS_PUMP_WS_TRADE_PROCESSING_LOG === "true",
+		},
 	},
 
 	// Application Configuration

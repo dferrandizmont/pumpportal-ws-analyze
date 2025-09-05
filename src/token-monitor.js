@@ -276,15 +276,37 @@ class TokenMonitor {
 
 			this.processedTrades.add(tradeId);
 
-			// Log trade information (debug level to reduce noise)
-			logger.debugTokenMonitor(`Trade detected: ${txType.toUpperCase()}`, {
-				tokenAddress,
-				traderAddress,
-				tokenAmount,
-				solAmount,
-				marketCapSol,
-				price,
-			});
+			// Trade logging sampling/throttling to reduce log volume
+			const tradeLogCfg = (config.logging && config.logging.trade) || {};
+			let shouldLog = true;
+			const tokenKey = tokenAddress || "unknown";
+			// Initialize internal state maps lazily
+			if (!this._tradeLogCounters) this._tradeLogCounters = new Map();
+			if (!this._tradeLogLastTs) this._tradeLogLastTs = new Map();
+
+			// Throttle by time per token
+			if (tradeLogCfg.throttleMs && tradeLogCfg.throttleMs > 0) {
+				const now = Date.now();
+				const last = this._tradeLogLastTs.get(tokenKey) || 0;
+				if (now - last < tradeLogCfg.throttleMs) {
+					shouldLog = false;
+				} else {
+					this._tradeLogLastTs.set(tokenKey, now);
+				}
+			}
+
+			// Sample every N trades per token
+			if (shouldLog && tradeLogCfg.sampleEvery && tradeLogCfg.sampleEvery > 1) {
+				const cnt = (this._tradeLogCounters.get(tokenKey) || 0) + 1;
+				this._tradeLogCounters.set(tokenKey, cnt);
+				if (cnt % tradeLogCfg.sampleEvery !== 0) {
+					shouldLog = false;
+				}
+			}
+
+			if (shouldLog) {
+				logger.debugTokenMonitor(`Trade detected: ${txType.toUpperCase()}`, { tokenAddress, traderAddress, tokenAmount, solAmount, marketCapSol, price });
+			}
 		} catch (error) {
 			logger.errorMonitor("Error handling trade", { error: error.message, tradeData });
 		}

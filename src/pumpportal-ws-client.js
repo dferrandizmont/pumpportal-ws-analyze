@@ -214,7 +214,10 @@ class PumpPortalWSClient {
 			}
 		}
 
-		logger.debugPumpWs("Processing message", { type: messageType, hasData: !!message });
+		// Reduce noisy trade processing logs if configured
+		if (!(messageType === "trade" && config.logging.trade && config.logging.trade.suppressPumpWsTradeProcessingLog)) {
+			logger.debugPumpWs("Processing message", { type: messageType, hasData: !!message });
+		}
 
 		const handler = this.messageHandlers.get(messageType);
 		if (handler) {
