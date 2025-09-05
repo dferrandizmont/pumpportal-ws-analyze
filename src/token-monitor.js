@@ -49,7 +49,8 @@ class TokenMonitor {
     const tokensOverThreshold = tokens.filter(token => {
       const tracking = this.tokenSellTracking.get(token.address);
       if (!tracking) return false;
-      const percentage = (tracking.tokensSold / tracking.totalTokensOwned) * 100;
+      const percentage = tracking.initialTokensOwned > 0 ?
+        (tracking.tokensSold / tracking.initialTokensOwned) * 100 : 0;
       return percentage >= config.thresholds.creatorSellThreshold;
     }).length;
 
@@ -63,7 +64,8 @@ class TokenMonitor {
       const totalPercentage = tokens.reduce((sum, token) => {
         const tracking = this.tokenSellTracking.get(token.address);
         if (!tracking) return sum;
-        const percentage = (tracking.tokensSold / tracking.totalTokensOwned) * 100;
+        const percentage = tracking.initialTokensOwned > 0 ?
+          (tracking.tokensSold / tracking.initialTokensOwned) * 100 : 0;
         return sum + percentage;
       }, 0);
       averageSellPercentage = totalPercentage / tokens.length;
@@ -160,6 +162,13 @@ class TokenMonitor {
         currentSupply: tokenData.currentSupply || 0
       });
 
+      logger.debugTokenMonitor(`Token stored: ${tokenName} (${tokenSymbol})`, {
+        tokenAddress,
+        creatorAddress,
+        name: tokenName,
+        symbol: tokenSymbol
+      });
+
       // Track creator's tokens
       if (!this.creatorPositions.has(creatorAddress)) {
         this.creatorPositions.set(creatorAddress, new Set());
@@ -167,9 +176,11 @@ class TokenMonitor {
       this.creatorPositions.get(creatorAddress).add(tokenAddress);
 
       // Initialize token sell tracking (por token individual)
+      const initialTokensOwned = tokenData.initialBuy || tokenData.tokenAmount || 0;
       this.tokenSellTracking.set(tokenAddress, {
         creatorAddress: creatorAddress,
-        totalTokensOwned: tokenData.initialBuy || 0,  // Tokens que el creador compró para este token
+        totalTokensOwned: initialTokensOwned,  // Tokens que el creador compró para este token
+        initialTokensOwned: initialTokensOwned,  // Guardamos el balance inicial para cálculos de %
         tokensSold: 0,
         lastSellTime: null,
         sellHistory: []
@@ -189,13 +200,14 @@ class TokenMonitor {
         creatorAddress
       });
 
-      // Subscribe to creator's account trades if not already subscribed
+      // Note: Account trades subscription removed - we'll detect creator sells from token trades instead
+      // This is more reliable as it doesn't depend on PumpPortal's account trade format
       if (config.app.monitorCreatorSells) {
-        this.wsClient.subscribeAccountTrades([creatorAddress]);
-        logger.debugTokenMonitor(`Subscribed to creator account trades: ${creatorAddress}`, {
+        logger.tokenMonitor(`Creator monitoring enabled for: ${creatorAddress}`, {
           tokenAddress,
           tokenName,
-          tokenSymbol
+          tokenSymbol,
+          creatorAddress
         });
       }
 
@@ -221,7 +233,40 @@ class TokenMonitor {
         return;
       }
 
-      // Evitar procesar el mismo trade múltiples veces
+      // Check if this is a sell trade by a creator FIRST
+      if (txType === 'sell' && this.isCreatorOfToken(traderAddress, tokenAddress)) {
+        // Para creator trades, usamos un ID diferente para evitar falsos positivos de duplicados
+        const creatorTradeId = `creator-${tradeData.signature}-${tokenAddress}-${traderAddress}`;
+        if (!this.processedTrades) {
+          this.processedTrades = new Set();
+        }
+
+        if (this.processedTrades.has(creatorTradeId)) {
+          logger.debugTokenMonitor(`Skipping duplicate creator trade: ${creatorTradeId}`);
+          return;
+        }
+
+        this.processedTrades.add(creatorTradeId);
+        this.handleCreatorSell(traderAddress, tokenAddress, tradeData);
+        return; // Salimos aquí para no procesar como trade normal
+      }
+
+      // Handle creator BUY to keep balances accurate
+      if (txType === 'buy' && this.isCreatorOfToken(traderAddress, tokenAddress)) {
+        const creatorTradeId = `creator-buy-${tradeData.signature}-${tokenAddress}-${traderAddress}`;
+        if (!this.processedTrades) {
+          this.processedTrades = new Set();
+        }
+        if (this.processedTrades.has(creatorTradeId)) {
+          logger.debugTokenMonitor(`Skipping duplicate creator buy trade: ${creatorTradeId}`);
+          return;
+        }
+        this.processedTrades.add(creatorTradeId);
+        this.handleCreatorBuy(traderAddress, tokenAddress, tradeData);
+        return;
+      }
+
+      // Para trades normales (no creator), verificar duplicados normalmente
       const tradeId = `${tradeData.signature}-${tokenAddress}-${traderAddress}`;
       if (!this.processedTrades) {
         this.processedTrades = new Set();
@@ -233,11 +278,6 @@ class TokenMonitor {
       }
 
       this.processedTrades.add(tradeId);
-
-      // Check if this is a sell trade by a creator
-      if (txType === 'sell' && this.isCreatorOfToken(traderAddress, tokenAddress)) {
-        this.handleCreatorSell(traderAddress, tokenAddress, tradeData);
-      }
 
       // Log trade information (debug level to reduce noise)
       logger.debugTokenMonitor(`Trade detected: ${txType.toUpperCase()}`, {
@@ -256,7 +296,49 @@ class TokenMonitor {
 
   isCreatorOfToken(traderAddress, tokenAddress) {
     const tokenInfo = this.monitoredTokens.get(tokenAddress);
-    return tokenInfo && tokenInfo.creator === traderAddress;
+    if (!tokenInfo) {
+      logger.debugTokenMonitor(`Token ${tokenAddress} not found in monitored tokens`);
+      return false;
+    }
+
+    const isCreator = tokenInfo.creator === traderAddress;
+    if (isCreator) {
+      logger.tokenMonitor(`🎯 CREATOR TRADE DETECTED: ${traderAddress} for token ${tokenAddress}`);
+    }
+
+    return isCreator;
+  }
+
+  handleCreatorBuy(creatorAddress, tokenAddress, tradeData) {
+    const tokenInfo = this.monitoredTokens.get(tokenAddress);
+    const tokenTracking = this.tokenSellTracking.get(tokenAddress);
+
+    if (!tokenInfo || !tokenTracking) {
+      return;
+    }
+
+    // Verificar que el trader sea el creador de este token específico
+    if (tokenTracking.creatorAddress !== creatorAddress) {
+      return;
+    }
+
+    const { tokenAmount, solAmount, price } = tradeData;
+
+    // Sumar tokens al balance del creador
+    tokenTracking.totalTokensOwned += tokenAmount;
+
+    // Sumar también al denominador usado para el porcentaje de venta total
+    // (representa el total de tokens adquiridos por el creador en la vida del token)
+    tokenTracking.initialTokensOwned += tokenAmount;
+
+    logger.debugTokenMonitor(`Creator BUY recorded for ${tokenAddress}:`, {
+      creatorAddress,
+      tokenBought: tokenAmount,
+      newBalance: tokenTracking.totalTokensOwned,
+      newDenominator: tokenTracking.initialTokensOwned,
+      solSpent: solAmount,
+      price
+    });
   }
 
   handleCreatorSell(creatorAddress, tokenAddress, tradeData) {
@@ -272,24 +354,30 @@ class TokenMonitor {
       return;
     }
 
-    // Evitar procesar el mismo trade múltiples veces
-    const tradeId = `${tradeData.signature}-${tokenAddress}-${creatorAddress}`;
-    if (!this.processedTrades) {
-      this.processedTrades = new Set();
-    }
-
-    if (this.processedTrades.has(tradeId)) {
-      logger.debugTokenMonitor(`Skipping duplicate trade: ${tradeId}`);
-      return;
-    }
-
-    this.processedTrades.add(tradeId);
+    // Los duplicados ya se verificaron en handleTrade, aquí procesamos directamente
 
     const { tokenAmount, solAmount, price } = tradeData;
-    const sellPercentage = (tokenAmount / tokenTracking.totalTokensOwned) * 100;
 
-    // Update tracking
-    tokenTracking.tokensSold += tokenAmount;
+    // Calcular porcentaje basado en el balance ANTES de la venta
+    const balanceBeforeSell = tokenTracking.totalTokensOwned;
+    const sellPercentage = balanceBeforeSell > 0 ?
+      (tokenAmount / balanceBeforeSell) * 100 : 0;
+
+    // Validar que no vendamos más tokens de los que tenemos
+    if (tokenAmount > balanceBeforeSell) {
+      logger.warnMonitor(`Creator trying to sell more tokens than owned!`, {
+        creatorAddress,
+        tokenAddress,
+        tokenAmount,
+        balanceBeforeSell,
+        tokenName: tokenInfo.name
+      });
+      return; // No procesar esta venta inválida
+    }
+
+    // Update tracking - restar tokens del balance del creador
+    tokenTracking.totalTokensOwned -= tokenAmount;  // ✅ RESTAR del balance del creador
+    tokenTracking.tokensSold += tokenAmount;        // ✅ ACUMULAR total vendido
     tokenTracking.lastSellTime = new Date();
     tokenTracking.sellHistory.push({
       tokenAddress,
@@ -300,8 +388,18 @@ class TokenMonitor {
       percentage: sellPercentage
     });
 
+    logger.debugTokenMonitor(`Updated tracking for ${tokenAddress}:`, {
+      creatorAddress,
+      balanceBeforeSell: balanceBeforeSell,
+      tokensSoldInThisTrade: tokenAmount,
+      balanceAfterSell: tokenTracking.totalTokensOwned,
+      totalTokensSold: tokenTracking.tokensSold,
+      sellPercentage: sellPercentage.toFixed(2)
+    });
+
     // Check if creator has sold a significant portion of THIS token
-    const totalSoldPercentage = (tokenTracking.tokensSold / tokenTracking.totalTokensOwned) * 100;
+    const totalSoldPercentage = tokenTracking.initialTokensOwned > 0 ?
+      (tokenTracking.tokensSold / tokenTracking.initialTokensOwned) * 100 : 0;
 
     logger.creatorSell(`Creator sell detected`, {
       creatorAddress,
@@ -313,6 +411,14 @@ class TokenMonitor {
       totalSoldPercentage: totalSoldPercentage.toFixed(2),
       solReceived: solAmount,
       price: price
+    });
+
+    // Log current state after update
+    logger.tokenMonitor(`STATE UPDATED for ${tokenInfo.name}:`, {
+      currentTokensOwned: tokenTracking.totalTokensOwned,
+      totalTokensSold: tokenTracking.tokensSold,
+      totalSellPercentage: totalSoldPercentage.toFixed(2),
+      totalSells: tokenTracking.sellHistory.length
     });
 
     // Alert if creator has sold more than threshold of THIS token
@@ -360,7 +466,7 @@ class TokenMonitor {
       }
 
       const creatorData = creatorMap.get(creator);
-      creatorData.totalTokensOwned += tracking.totalTokensOwned;
+      creatorData.totalTokensOwned += tracking.initialTokensOwned;  // Usar balance inicial
       creatorData.tokensSold += tracking.tokensSold;
       creatorData.sellHistory.push(...tracking.sellHistory);
       creatorData.tokens.push(tokenAddress);
@@ -389,7 +495,8 @@ class TokenMonitor {
         return;
       }
 
-      const totalSoldPercentage = (tokenTracking.tokensSold / tokenTracking.totalTokensOwned) * 100;
+      const totalSoldPercentage = tokenTracking.initialTokensOwned > 0 ?
+        (tokenTracking.tokensSold / tokenTracking.initialTokensOwned) * 100 : 0;
       const statusEmoji = totalSoldPercentage >= config.thresholds.creatorSellThreshold ? '🚨' : '✅';
       const lastSellTime = tokenTracking.lastSellTime ?
         new Date(tokenTracking.lastSellTime).toLocaleTimeString('es-ES', {
@@ -418,7 +525,8 @@ class TokenMonitor {
       tokensOverThreshold: monitoredTokens.filter(token => {
         const tracking = this.tokenSellTracking.get(token.address);
         if (!tracking) return false;
-        const percentage = (tracking.tokensSold / tracking.totalTokensOwned) * 100;
+        const percentage = tracking.initialTokensOwned > 0 ?
+          (tracking.tokensSold / tracking.initialTokensOwned) * 100 : 0;
         return percentage >= config.thresholds.creatorSellThreshold;
       }).length
     });
@@ -438,7 +546,8 @@ class TokenMonitor {
 
       if (!tracking || !info) return null;
 
-      const percentage = (tracking.tokensSold / tracking.totalTokensOwned) * 100;
+      const percentage = tracking.initialTokensOwned > 0 ?
+        (tracking.tokensSold / tracking.initialTokensOwned) * 100 : 0;
       const status = percentage >= config.thresholds.creatorSellThreshold ? '🚨' : '✅';
 
       return `${status} ${info.name}(${info.symbol}): ${percentage.toFixed(1)}%`;

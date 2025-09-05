@@ -69,13 +69,13 @@ function formatStatus(data) {
   console.log(`📈 Total tokens monitored: ${data.tokens.length}\n`);
 
   data.tokens.forEach((token, index) => {
-    const statusEmoji = token.sellPercentage >= 80 ? '🚨' : '✅';
+    const statusEmoji = (token.sellPercentage || 0) >= 80 ? '🚨' : '✅';
     console.log(`${index + 1}. ${statusEmoji} ${token.name} (${token.symbol})`);
     console.log(`   📍 Address: ${token.address}`);
     console.log(`   👤 Creator: ${token.creator}`);
-    console.log(`   💰 Creator owns: ${token.totalTokensOwned.toLocaleString()} tokens`);
-    console.log(`   📈 Creator sold: ${token.tokensSold.toLocaleString()} tokens`);
-    console.log(`   📊 Sold percentage: ${token.sellPercentage.toFixed(2)}%`);
+    console.log(`   💰 Creator owns: ${(token.totalTokensOwned || 0).toLocaleString()} tokens`);
+    console.log(`   📈 Creator sold: ${(token.tokensSold || 0).toLocaleString()} tokens`);
+    console.log(`   📊 Sold percentage: ${token.sellPercentage ? token.sellPercentage.toFixed(2) : '0.00'}%`);
     console.log(`   🕒 Last sell: ${token.lastSellTime ? new Date(token.lastSellTime).toLocaleTimeString() : 'Never'}`);
     console.log(`   📝 Total sells: ${token.totalSells}`);
     console.log(`   📅 Created: ${new Date(token.createdAt).toLocaleString()}`);

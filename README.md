@@ -57,7 +57,7 @@ MAX_RECONNECT_ATTEMPTS=10
 RECONNECT_DELAY_MS=5000
 MONITOR_CREATOR_SELLS=true
 
-# Thresholds for creator sell detection (percentage of total supply)
+# Threshold for creator sell detection (percentage of creator-held tokens)
 CREATOR_SELL_THRESHOLD=80.0
 
 # Optional: API Key for PumpPortal (if needed for premium features)
@@ -214,11 +214,13 @@ $ node status-client.js stats
 - Monitorea trades en tiempo real para cada token
 
 ### Detección de Ventas de Creadores
-- Monitorea las ventas realizadas por los creadores de tokens (basado en tokens realmente poseídos)
+- Monitorea las ventas realizadas por los creadores de tokens (basado en su posición real)
+- El porcentaje se calcula sobre el total de tokens adquiridos por el creador (compra inicial + compras posteriores)
 - Configurable el porcentaje umbral de venta (por defecto 80%)
 - Alertas visuales cuando se supera el umbral
 - **Archivo dedicado de alertas**: `logs/creator-sell-alerts.log`
 - Tracking histórico de ventas por token individual
+- **Detección robusta**: Funciona a través de token trades (no depende de account trades)
 
 ### Logging
 - Logs estructurados con timestamps en zona horaria de Madrid

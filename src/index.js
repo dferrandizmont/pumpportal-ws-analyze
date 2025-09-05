@@ -122,12 +122,14 @@ class PumpPortalAnalyzer {
 
                 if (!tracking || !info) return null;
 
-                const percentage = (tracking.tokensSold / tracking.totalTokensOwned) * 100;
+                const percentage = tracking.initialTokensOwned > 0 ?
+                  (tracking.tokensSold / tracking.initialTokensOwned) * 100 : 0;
                 return {
                   address: token.address,
                   name: info.name,
                   symbol: info.symbol,
                   creator: info.creator,
+                  initialTokensOwned: tracking.initialTokensOwned,
                   totalTokensOwned: tracking.totalTokensOwned,
                   tokensSold: tracking.tokensSold,
                   sellPercentage: percentage,
@@ -150,7 +152,12 @@ class PumpPortalAnalyzer {
             res.end(JSON.stringify({
               timestamp: new Date().toISOString(),
               uptime: process.uptime(),
-              ...quickStats
+              totalTokens: quickStats.totalTokens,
+              totalCreators: quickStats.totalCreators,
+              tokensOverThreshold: quickStats.tokensOverThreshold,
+              totalTokensOwned: quickStats.totalTokensOwned,
+              totalTokensSold: quickStats.totalTokensSold,
+              averageSellPercentage: quickStats.averageSellPercentage
             }, null, 2));
             break;
 
