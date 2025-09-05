@@ -787,7 +787,7 @@ class TokenMonitor {
 
 			const mcUsdStr = mcUsd !== null ? formatCurrencyEs(mcUsd, "$") : "N/D";
 			const mcSolStr = typeof mcSol === "number" ? `${mcSol.toLocaleString("es-ES", { maximumFractionDigits: 6 })} SOL` : "N/D";
-			console.info(`Creator fully exited ${tokenInfo.name} (${tokenInfo.symbol}) at MC: ${mcSolStr} (${mcUsdStr})`);
+			console.info(`[CREATOR_SELL] Creator fully exited ${tokenInfo.name} (${tokenInfo.symbol}) at MC: ${mcSolStr} (${mcUsdStr})`);
 		}
 	}
 
