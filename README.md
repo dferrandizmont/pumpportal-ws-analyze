@@ -62,11 +62,18 @@ CREATOR_SELL_THRESHOLD=80.0
 
 # Optional: API Key for PumpPortal (if needed for premium features)
 # PUMP_PORTAL_API_KEY=your-api-key-here
+
+# Price Service (CoinGecko)
+# Endpoint to fetch SOL price in USD (CoinGecko)
+COINGECKO_SOL_ENDPOINT=https://api.coingecko.com/api/v3/coins/solana
+# Refresh interval for price service (ms)
+PRICE_REFRESH_MS=600000
 ```
 
 ### Configuraciones Recomendadas
 
 #### Para Desarrollo
+
 ```env
 LOG_LEVEL=debug
 MONITOR_CREATOR_SELLS=true
@@ -74,6 +81,7 @@ CREATOR_SELL_THRESHOLD=50.0
 ```
 
 #### Para Producción
+
 ```env
 LOG_LEVEL=warn
 MONITOR_CREATOR_SELLS=true
@@ -81,6 +89,7 @@ CREATOR_SELL_THRESHOLD=80.0
 ```
 
 #### Para Testing
+
 ```env
 LOG_LEVEL=info
 MONITOR_CREATOR_SELLS=false
@@ -89,12 +98,15 @@ MONITOR_CREATOR_SELLS=false
 ### Sistema de Alertas
 
 #### Archivo de Alertas Dedicado
+
 Cuando se supera el umbral de ventas, se genera automáticamente una entrada en:
+
 ```
 logs/creator-sell-alerts.log
 ```
 
 #### Formato de Alerta
+
 ```
 DD-MM-YYYY HH:mm:ss.SSS INFO 🚨 ALERT: Creator sold X.XX% of tokens in TOKEN_NAME
 {
@@ -111,6 +123,7 @@ DD-MM-YYYY HH:mm:ss.SSS INFO 🚨 ALERT: Creator sold X.XX% of tokens in TOKEN_N
 ```
 
 #### Monitoreo en Tiempo Real
+
 - ✅ **Consola**: Alertas inmediatas con emojis 🚨
 - ✅ **Archivo principal**: Logs en `pumpportal-monitor.log`
 - ✅ **Archivo dedicado**: Historial completo en `creator-sell-alerts.log`
@@ -209,20 +222,30 @@ $ node status-client.js stats
 ## 📊 Funcionalidades
 
 ### Monitoreo de Nuevos Tokens
+
 - Se suscribe automáticamente a eventos de creación de nuevos tokens
 - Registra información detallada de cada token (nombre, símbolo, creador, supply)
 - Monitorea trades en tiempo real para cada token
 
 ### Detección de Ventas de Creadores
+
 - Monitorea las ventas realizadas por los creadores de tokens (basado en su posición real)
 - El porcentaje se calcula sobre el total de tokens adquiridos por el creador (compra inicial + compras posteriores)
 - Configurable el porcentaje umbral de venta (por defecto 80%)
 - Alertas visuales cuando se supera el umbral
+- Cuando el creador liquida completamente su posición (0 tokens), se registra automáticamente el Market Cap en SOL y en USD en los logs y en el estado interno
+
+### Servicio de Precios (CoinGecko)
+
+- Servicio en background que actualiza cada 10 minutos el precio de SOL en USD desde CoinGecko
+- Multiplicamos `marketCapSol` por el precio de SOL para obtener `marketCapUsd`
+- Formato español para USD: por ejemplo `43.490,24$`
 - **Archivo dedicado de alertas**: `logs/creator-sell-alerts.log`
 - Tracking histórico de ventas por token individual
 - **Detección robusta**: Funciona a través de token trades (no depende de account trades)
 
 ### Logging
+
 - Logs estructurados con timestamps en zona horaria de Madrid
 - Niveles de logging configurables (error, warn, info, debug)
 - Archivos de log separados para output general y errores
@@ -259,21 +282,23 @@ pumpportal-ws-analyze/
 23-12-2024 15:30:46.456 INFO [TOKEN_MONITOR] Trade detected: SELL
 23-12-2024 15:30:46.457 WARN [CREATOR_SELL] Creator sell detected
 🚨 ALERT: Creator ABC123... has sold 85.50% of tokens for MyToken (MTK)!
+23-12-2024 15:31:10.123 WARN [CREATOR_SELL] 🛑 Creator fully exited token {"exitMarketCapSol": 62.46, "exitMarketCapUsd": 929.93, ...}
+🛑 Creator fully exited MyToken (MTK) at MC: 62,46 SOL (929,93$)
 ```
 
 ## 🔧 Configuración Avanzada
 
 ### Variables de Entorno
 
-| Variable | Descripción | Valor por defecto |
-|----------|-------------|-------------------|
-| `PUMP_PORTAL_WS_URL` | URL del WebSocket de PumpPortal | `wss://pumpportal.fun/api/data` |
-| `LOG_LEVEL` | Nivel de logging | `info` |
-| `LOG_TIMEZONE` | Zona horaria para timestamps | `Europe/Madrid` |
-| `MAX_RECONNECT_ATTEMPTS` | Máximo número de reintentos de conexión | `10` |
-| `RECONNECT_DELAY_MS` | Delay entre reintentos (ms) | `5000` |
-| `MONITOR_CREATOR_SELLS` | Habilitar monitoreo de ventas de creadores | `true` |
-| `CREATOR_SELL_THRESHOLD` | Umbral de venta para alertas (%) | `80.0` |
+| Variable                 | Descripción                                | Valor por defecto               |
+| ------------------------ | ------------------------------------------ | ------------------------------- |
+| `PUMP_PORTAL_WS_URL`     | URL del WebSocket de PumpPortal            | `wss://pumpportal.fun/api/data` |
+| `LOG_LEVEL`              | Nivel de logging                           | `info`                          |
+| `LOG_TIMEZONE`           | Zona horaria para timestamps               | `Europe/Madrid`                 |
+| `MAX_RECONNECT_ATTEMPTS` | Máximo número de reintentos de conexión    | `10`                            |
+| `RECONNECT_DELAY_MS`     | Delay entre reintentos (ms)                | `5000`                          |
+| `MONITOR_CREATOR_SELLS`  | Habilitar monitoreo de ventas de creadores | `true`                          |
+| `CREATOR_SELL_THRESHOLD` | Umbral de venta para alertas (%)           | `80.0`                          |
 
 ## 🛡️ Manejo de Errores
 
