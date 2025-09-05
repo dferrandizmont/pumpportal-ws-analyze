@@ -189,6 +189,7 @@ class TokenMonitor {
 				exitMarketCapUsd: null,
 				exitAt: null,
 				exitLogged: false,
+				thresholdAlerted: false,
 			});
 
 			logger.debugTokenMonitor(`New token detected: ${tokenName} (${tokenSymbol})`, {
@@ -415,8 +416,8 @@ class TokenMonitor {
 			totalSells: tokenTracking.sellHistory.length,
 		});
 
-		// Alert if creator has sold more than threshold of THIS token
-		if (totalSoldPercentage >= config.thresholds.creatorSellThreshold) {
+		// Alert once if creator has sold more than threshold of THIS token
+		if (totalSoldPercentage >= config.thresholds.creatorSellThreshold && !tokenTracking.thresholdAlerted) {
 			const alertMessage = `Creator sold ${totalSoldPercentage.toFixed(2)}% of tokens in ${tokenInfo.name} (${tokenInfo.symbol})`;
 
 			logger.creatorAlert(alertMessage, {
@@ -432,7 +433,8 @@ class TokenMonitor {
 				totalSellsInHistory: tokenTracking.sellHistory.length,
 			});
 
-			console.info(`ALERT: Creator ${creatorAddress} has sold ${totalSoldPercentage.toFixed(2)}% of tokens in ${tokenInfo.name} (${tokenInfo.symbol})!`);
+			console.info(`[ALERT] Creator ${creatorAddress} has sold ${totalSoldPercentage.toFixed(2)}% of tokens in ${tokenInfo.name} (${tokenInfo.symbol})!`);
+			tokenTracking.thresholdAlerted = true;
 		}
 
 		// If creator fully exited position, record market caps

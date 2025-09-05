@@ -84,7 +84,7 @@ logger.creatorAlert = (message, meta) => {
 	// Log to main logger
 	logger.creatorSell(message, meta);
 	// Log to dedicated alerts file
-	alertLogger.info(`ALERT: ${message}`, meta);
+	alertLogger.info(`[ALERT] ${message}`, meta);
 };
 
 export default logger;
