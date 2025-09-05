@@ -2,7 +2,7 @@ import PumpPortalWSClient from "./pumpportal-ws-client.js";
 import logger from "./logger.js";
 import config from "./config.js";
 import priceService from "./price-service.js";
-import { formatCurrencyEs } from "./utils.js";
+import { formatCurrencyEs, formatPercentage } from "./utils.js";
 import fs from "fs";
 import path from "path";
 import moment from "moment-timezone";
@@ -98,6 +98,12 @@ class TokenMonitor {
 		for (const [tokenAddress, tracking] of this.tokenSellTracking) {
 			if (!tracking.lastSellTime || new Date(tracking.lastSellTime) < oneDayAgo) {
 				// Solo limpiar si no hay ventas recientes
+				// Asegurar desuscripción del token en el WS antes de limpiar estructuras locales
+				try {
+					this.wsClient.unsubscribeTokenTrades([tokenAddress]);
+				} catch (e) {
+					// Continuar limpieza aunque falle el WS
+				}
 				this.tokenSellTracking.delete(tokenAddress);
 				this.monitoredTokens.delete(tokenAddress);
 
@@ -288,6 +294,58 @@ class TokenMonitor {
 			// clear separation before summary (for readability)
 			session.stream.write(`\n\n\n\n\n\n`);
 			session.stream.write(`${ts} INFO ${JSON.stringify(summary)}\n`);
+
+			// Also append a consolidated summary line to a global summaries log
+			try {
+				const tokenInfo = this.monitoredTokens.get(tokenAddress) || {};
+				// Classification outcome based on configured thresholds
+				const goodT = config.summaries.goodThresholdPct;
+				const badT = config.summaries.badThresholdPct;
+				let outcome = "neutral";
+				let outcomeReason = "no thresholds met";
+				if (typeof summary.maxPct === "number" && isFinite(summary.maxPct) && summary.maxPct >= goodT) {
+					outcome = "good";
+					outcomeReason = `maxPct ${summary.maxPct.toFixed(2)}% >= ${goodT}%`;
+				} else if (typeof summary.minPct === "number" && isFinite(summary.minPct) && summary.minPct <= -badT) {
+					outcome = "bad";
+					outcomeReason = `minPct ${summary.minPct.toFixed(2)}% <= -${badT}%`;
+				}
+
+				const priceDecimals = Math.max(0, parseInt(config.summaries.priceDecimals || 12));
+				const summaryForGlobal = {
+					...summary,
+					tokenAddress,
+					tokenName: tokenInfo.name || null,
+					tokenSymbol: tokenInfo.symbol || null,
+					outcome,
+					outcomeReason,
+					goodThresholdPct: goodT,
+					badThresholdPct: badT,
+					// Formatted helpers for quick visual scanning
+					entryPriceStr: typeof summary.entryPrice === "number" && isFinite(summary.entryPrice) ? summary.entryPrice.toFixed(priceDecimals) : null,
+					entryMarketCapSolStr:
+						typeof summary.entryMarketCapSol === "number" && isFinite(summary.entryMarketCapSol)
+							? `${summary.entryMarketCapSol.toLocaleString("es-ES", { maximumFractionDigits: 6 })} SOL`
+							: null,
+					entryMarketCapUsdStr:
+						typeof summary.entryMarketCapUsd === "number" && isFinite(summary.entryMarketCapUsd) ? formatCurrencyEs(summary.entryMarketCapUsd, "$") : null,
+					minPctStr: typeof summary.minPct === "number" && isFinite(summary.minPct) ? formatPercentage(summary.minPct) : null,
+					maxPctStr: typeof summary.maxPct === "number" && isFinite(summary.maxPct) ? formatPercentage(summary.maxPct) : null,
+					thresholdPriceStr: typeof summary.thresholdPrice === "number" && isFinite(summary.thresholdPrice) ? summary.thresholdPrice.toFixed(priceDecimals) : null,
+					thresholdMcSolStr:
+						typeof summary.thresholdMcSol === "number" && isFinite(summary.thresholdMcSol)
+							? `${summary.thresholdMcSol.toLocaleString("es-ES", { maximumFractionDigits: 6 })} SOL`
+							: null,
+					thresholdMcUsdStr: typeof summary.thresholdMcUsd === "number" && isFinite(summary.thresholdMcUsd) ? formatCurrencyEs(summary.thresholdMcUsd, "$") : null,
+				};
+				const summariesLogPath = path.join("logs", "tracking-summaries.log");
+				if (!fs.existsSync("logs")) {
+					fs.mkdirSync("logs", { recursive: true });
+				}
+				fs.appendFileSync(summariesLogPath, `${ts} INFO ${JSON.stringify(summaryForGlobal)}\n`);
+			} catch (e) {
+				logger.errorMonitor("Failed to write global summary log", { error: e.message, tokenAddress });
+			}
 			session.stream.end();
 			this.wsClient.unsubscribeTokenTrades([tokenAddress]);
 			logger.tokenMonitor("Tracking stopped for token", { tokenAddress, reason, filePath: session.filePath });

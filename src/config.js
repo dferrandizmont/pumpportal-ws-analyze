@@ -20,6 +20,14 @@ const config = {
 		},
 	},
 
+	// Summaries formatting and classification
+	summaries: {
+		priceDecimals: parseInt(process.env.SUMMARIES_PRICE_DECIMALS || "12"),
+		goodThresholdPct: parseFloat(process.env.SUMMARIES_GOOD_THRESHOLD_PCT || "20"),
+		// Interpreted as absolute value; classification uses minPct <= -badThresholdPct
+		badThresholdPct: parseFloat(process.env.SUMMARIES_BAD_THRESHOLD_PCT || "36"),
+	},
+
 	// Application Configuration
 	app: {
 		maxReconnectAttempts: parseInt(process.env.MAX_RECONNECT_ATTEMPTS) || 10,

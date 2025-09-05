@@ -2,6 +2,75 @@
 
 import http from "http";
 
+// --- Formatting helpers (ES-ES, 24h, sin librerías externas) ---
+const ES_LOCALE = "es-ES";
+
+function formatNumberEs(value, options = {}) {
+	const { minimumFractionDigits, maximumFractionDigits } = options;
+	if (typeof value !== "number" || !isFinite(value)) return "0";
+	return value.toLocaleString(ES_LOCALE, {
+		minimumFractionDigits,
+		maximumFractionDigits,
+	});
+}
+
+function formatPercentEs(value, digits = 2) {
+	const n = typeof value === "number" ? value : 0;
+	return `${n.toFixed(digits).replace(".", ",")} %`;
+}
+
+function formatCurrencyUsdEs(value) {
+	if (typeof value !== "number" || !isFinite(value)) return "0,00 $";
+	return `${formatNumberEs(value, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} $`;
+}
+
+function formatDateTimeEs(dateLike) {
+	const d = new Date(dateLike);
+	if (isNaN(d)) return "N/D";
+	return d.toLocaleString(ES_LOCALE, {
+		year: "2-digit",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+		hour12: false,
+	});
+}
+
+function formatTimeEs(dateLike) {
+	const d = new Date(dateLike);
+	if (isNaN(d)) return "N/D";
+	return d.toLocaleTimeString(ES_LOCALE, {
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+		hour12: false,
+	});
+}
+
+function formatDurationHMS(totalSeconds) {
+	const s = Math.max(0, Math.floor(totalSeconds || 0));
+	const h = Math.floor(s / 3600);
+	const m = Math.floor((s % 3600) / 60);
+	const sec = s % 60;
+	const pad = (n) => n.toString().padStart(2, "0");
+	return `${pad(h)}:${pad(m)}:${pad(sec)}`;
+}
+
+function formatMaybeTimeEs(dateLike) {
+	return dateLike ? formatTimeEs(dateLike) : "Nunca";
+}
+
+// Estados de venta por reglas acordadas
+function getSellState(percentage, threshold = 80) {
+	if (!isFinite(percentage)) percentage = 0;
+	if (percentage === 0) return { icon: "🟢", label: "SAFE" };
+	if (percentage === 100) return { icon: "🏁", label: "EXITED" };
+	if (percentage >= threshold) return { icon: "🟧", label: "RISK" };
+	return { icon: "🟨", label: "WATCH" };
+}
+
 /**
  * Client script to query PumpPortal Token Analyzer status from another terminal
  * Usage: node status-client.js [command] [options]
@@ -63,30 +132,36 @@ function makeRequest(endpoint) {
 }
 
 function formatStatus(data) {
-	console.info("\n🔥 ═══ PUMPPORTAL TOKEN TRACKING STATUS ═══ 🔥");
-	console.info(`⏰ Timestamp: ${new Date(data.timestamp).toLocaleString()}`);
-	console.info(`⏱️  Uptime: ${Math.floor(data.uptime / 60)}m ${Math.floor(data.uptime % 60)}s`);
+	console.info("\n🔥 ═══ ESTADO DE TOKENS TRACKED ═══ 🔥");
+	console.info(`⏰ Fecha: ${formatDateTimeEs(data.timestamp)}`);
+	console.info(`⏱️  Uptime: ${formatDurationHMS(data.uptime)}`);
 	if (data.solUsdPrice) {
-		const last = data.solUsdLastUpdated ? new Date(data.solUsdLastUpdated).toLocaleString() : "N/A";
-		console.info(`💎 SOL/USD: $${data.solUsdPrice} (last updated: ${last})`);
+		const last = data.solUsdLastUpdated ? formatDateTimeEs(data.solUsdLastUpdated) : "N/D";
+		console.info(`💱 SOL/USD: ${formatCurrencyUsdEs(data.solUsdPrice)} (act.: ${last})`);
 	}
 	const threshold = data.creatorSellThreshold ?? 80;
-	console.info(`🎯 Total tokens monitored: ${data.tokens.length}\n`);
+	console.info(`🎯 Monitoreados: ${data.tokens.length}\n`);
 
 	data.tokens.forEach((token, index) => {
 		const sellPct = token.sellPercentage || 0;
-		const statusEmoji = sellPct >= 80 ? "🚨" : sellPct >= 50 ? "⚠️" : sellPct >= 25 ? "📊" : "🟢";
-		const riskLevel = sellPct >= 80 ? "HIGH RISK" : sellPct >= 50 ? "MEDIUM RISK" : sellPct >= 25 ? "LOW RISK" : "SAFE";
+		const state = getSellState(sellPct, threshold);
 
-		console.info(`${index + 1}. ${statusEmoji} ${token.name} (${token.symbol}) - ${riskLevel}`);
+		console.info(`${index + 1}. ${state.icon} ${state.label} · ${token.name} (${token.symbol})`);
 		console.info(`   🔗 Address: ${token.address}`);
-		console.info(`   👤 Creator: ${token.creator}`);
-		console.info(`   💰 Creator owns: ${(token.totalTokensOwned || 0).toLocaleString()} tokens`);
-		console.info(`   📤 Creator sold: ${(token.tokensSold || 0).toLocaleString()} tokens`);
-		console.info(`   📊 Sold percentage: ${sellPct.toFixed(2)}% ${sellPct >= threshold ? "🚨" : "✅"}`);
-		console.info(`   ⏰ Last sell: ${token.lastSellTime ? new Date(token.lastSellTime).toLocaleTimeString() : "🕐 Never"}`);
-		console.info(`   📋 Total sells: ${token.totalSells} ${token.totalSells > 5 ? "🔥" : ""}`);
-		console.info(`   🎂 Created: ${new Date(token.createdAt).toLocaleString()}`);
+		console.info(`   👤 Creador: ${token.creator}`);
+		console.info(`   💰 Posee: ${formatNumberEs(token.totalTokensOwned || 0)} tokens`);
+		console.info(`   📤 Vendidos: ${formatNumberEs(token.tokensSold || 0)} tokens`);
+		console.info(`   📊 Vendido: ${formatPercentEs(sellPct)} ${sellPct >= threshold && sellPct < 100 ? "🟧" : sellPct === 100 ? "🏁" : sellPct === 0 ? "🟢" : "🟨"}`);
+		const lastSellStr = token.lastSellTime ? formatTimeEs(token.lastSellTime) : "Nunca";
+		// Contexto T+segundos desde la creación si hay última venta
+		let tPlus = "";
+		if (token.lastSellTime && token.createdAt) {
+			const deltaSec = Math.max(0, Math.floor((new Date(token.lastSellTime) - new Date(token.createdAt)) / 1000));
+			tPlus = ` (T+${deltaSec} s)`;
+		}
+		console.info(`   ⏰ Última venta: ${lastSellStr}${tPlus}`);
+		console.info(`   📋 Nº ventas: ${token.totalSells}`);
+		console.info(`   🎂 Creado: ${formatDateTimeEs(token.createdAt)}`);
 		console.info("");
 	});
 
@@ -94,26 +169,30 @@ function formatStatus(data) {
 }
 
 function formatStats(data) {
-	console.info("\n📊 ═══ PUMPPORTAL LIVE STATISTICS ═══ 📊");
-	console.info(`⏰ Timestamp: ${new Date(data.timestamp).toLocaleString()}`);
-	console.info(`⚡ Uptime: ${Math.floor(data.uptime / 60)}m ${Math.floor(data.uptime % 60)}s`);
+	console.info("\n📊 ═══ PumpPortal · Live ═══ 📊");
+	console.info(`⏰ Fecha: ${formatDateTimeEs(data.timestamp)}`);
+	console.info(`⚡ Uptime: ${formatDurationHMS(data.uptime)}`);
 
-	if (data.solUsdPrice) {
-		const last = data.solUsdLastUpdated ? new Date(data.solUsdLastUpdated).toLocaleString() : "N/A";
-		console.info(`💎 SOL/USD: $${data.solUsdPrice} (updated: ${last})`);
+	if (typeof data.solUsdPrice === "number") {
+		const last = data.solUsdLastUpdated ? formatDateTimeEs(data.solUsdLastUpdated) : "N/D";
+		console.info(`💱 SOL/USD: ${formatCurrencyUsdEs(data.solUsdPrice)} (act.: ${last})`);
 	}
 
 	const threshold = data.creatorSellThreshold ?? 80;
+	const totalTokens = data.totalTokens || 0;
 	const tokensOverThreshold = data.tokensOverThreshold || 0;
 	const avgSell = data.averageSellPercentage || 0;
 
-	console.info(`🎯 Tokens monitored: ${data.totalTokens}`);
-	console.info(`👥 Total creators: ${data.totalCreators}`);
-	console.info(`🚨 Tokens over threshold: ${tokensOverThreshold} ${tokensOverThreshold > 0 ? "⚠️" : "✅"}`);
-	console.info(`💼 Total tokens owned: ${data.totalTokensOwned ? data.totalTokensOwned.toLocaleString() : "0"}`);
-	console.info(`📤 Total tokens sold: ${data.totalTokensSold ? data.totalTokensSold.toLocaleString() : "0"}`);
-	console.info(`📈 Average sell %: ${avgSell.toFixed(2)}% ${avgSell >= 50 ? "🔥" : avgSell >= 25 ? "⚠️" : "🟢"}`);
-	console.info(`🎚️  Creator sell threshold: ${threshold}%`);
+	const overPct = totalTokens > 0 ? (tokensOverThreshold / totalTokens) * 100 : 0;
+	const distToThr = Math.max(0, threshold - avgSell);
+
+	console.info(`🎯 Monitoreados: ${totalTokens}`);
+	console.info(`👥 Creadores: ${data.totalCreators || 0}`);
+	console.info(`🟧 Sobre umbral (≥${threshold} %): ${tokensOverThreshold}/${totalTokens} (${formatPercentEs(overPct, 1)})`);
+	console.info(`📦 Tenencia total: ${formatNumberEs(data.totalTokensOwned || 0, { maximumFractionDigits: 3 })}`);
+	console.info(`📤 Vendidos total: ${formatNumberEs(data.totalTokensSold || 0, { maximumFractionDigits: 3 })}`);
+	console.info(`📈 Venta media creador: ${formatPercentEs(avgSell)}${distToThr > 0 ? ` (a ${formatNumberEs(distToThr, { maximumFractionDigits: 2 })} p. p. del umbral)` : ""}`);
+	console.info(`🎚️  Umbral de venta creador: ${formatPercentEs(threshold, 0)}`);
 	console.info("═════════════════════════════════════════════\n");
 }
 
