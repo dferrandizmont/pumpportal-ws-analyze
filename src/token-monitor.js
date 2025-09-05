@@ -166,6 +166,8 @@ class TokenMonitor {
 			preEntryBuys: null,
 			preEntrySells: null,
 			preEntryUniqueTraders: null,
+			preEntryMinMcUsd: null,
+			preEntryMaxMcUsd: null,
 			minPct: 0,
 			maxPct: 0,
 			buyCount: 0,
@@ -200,11 +202,13 @@ class TokenMonitor {
 				const entryPrice = typeof sess.thresholdPrice === "number" ? sess.thresholdPrice : 0;
 
 				// snapshot pre-entry stats at this moment
-				const agg = this.tokenTradeStats.get(tokenAddress) || { total: 0, buys: 0, sells: 0, traders: new Set() };
+				const agg = this.tokenTradeStats.get(tokenAddress) || { total: 0, buys: 0, sells: 0, traders: new Set(), minMcUsd: null, maxMcUsd: null };
 				sess.preEntryTotalTrades = agg.total || 0;
 				sess.preEntryBuys = agg.buys || 0;
 				sess.preEntrySells = agg.sells || 0;
 				sess.preEntryUniqueTraders = agg.traders ? agg.traders.size : 0;
+				sess.preEntryMinMcUsd = agg.minMcUsd;
+				sess.preEntryMaxMcUsd = agg.maxMcUsd;
 
 				sess.entryRecorded = true;
 				sess.entryPrice = entryPrice;
@@ -212,7 +216,16 @@ class TokenMonitor {
 				sess.entryMcUsd = mcUsd;
 
 				const ts = moment().tz(config.logging.timezone).format("DD-MM-YYYY HH:mm:ss.SSS");
-				sess.stream.write(`${ts} INFO Entry price: ${entryPrice.toFixed(18)} - Entry market cap: ${Math.round(mcUsd)}\n`);
+				const buys = sess.preEntryBuys || 0;
+				const sells = sess.preEntrySells || 0;
+				let ratio = "0:0";
+				if (buys > 0) ratio = `1:${(sells / buys).toFixed(2)}`;
+				else if (sells > 0) ratio = "0:1";
+				const minCap = sess.preEntryMinMcUsd != null ? Math.round(sess.preEntryMinMcUsd) : 0;
+				const maxCap = sess.preEntryMaxMcUsd != null ? Math.round(sess.preEntryMaxMcUsd) : 0;
+				sess.stream.write(
+					`${ts} INFO Entry price: ${entryPrice.toFixed(18)} - Entry market cap: ${Math.round(mcUsd)} - Buys ${buys} - Sells ${sells} - Ratio: ${ratio} - Min MarketCap: ${minCap} - Max MarketCap: ${maxCap}\n`
+				);
 				// also write a first current line (0%) for visual continuity
 				const elapsedMs = Date.now() - sess.startedAt;
 				const h = String(Math.floor(elapsedMs / 3600000)).padStart(2, "0");
@@ -261,6 +274,12 @@ class TokenMonitor {
 				preBuys: session.preBuys,
 				preSells: session.preSells,
 				preUniqueTraders: session.preUniqueTraders,
+				preEntryTotalTrades: session.preEntryTotalTrades,
+				preEntryBuys: session.preEntryBuys,
+				preEntrySells: session.preEntrySells,
+				preEntryUniqueTraders: session.preEntryUniqueTraders,
+				preEntryMinMcUsd: session.preEntryMinMcUsd,
+				preEntryMaxMcUsd: session.preEntryMaxMcUsd,
 				thresholdMcSol: session.thresholdMcSol,
 				thresholdMcUsd: session.thresholdMcUsd,
 				thresholdPrice: session.thresholdPrice,
@@ -470,7 +489,7 @@ class TokenMonitor {
 			// Update aggregated per-token trade stats (lifetime)
 			let agg = this.tokenTradeStats.get(tokenAddress);
 			if (!agg) {
-				agg = { total: 0, buys: 0, sells: 0, traders: new Set(), lastTradeAt: null };
+				agg = { total: 0, buys: 0, sells: 0, traders: new Set(), lastTradeAt: null, minMcUsd: null, maxMcUsd: null };
 				this.tokenTradeStats.set(tokenAddress, agg);
 			}
 			agg.total += 1;
@@ -478,6 +497,13 @@ class TokenMonitor {
 			if (txType === "sell") agg.sells += 1;
 			agg.traders.add(traderAddress);
 			agg.lastTradeAt = new Date();
+			// Update lifetime min/max MarketCap USD if available
+			const _solUsd = priceService.getSolUsd();
+			if (typeof marketCapSol === "number" && typeof _solUsd === "number") {
+				const _mcUsd = marketCapSol * _solUsd;
+				agg.minMcUsd = agg.minMcUsd === null ? _mcUsd : Math.min(agg.minMcUsd, _mcUsd);
+				agg.maxMcUsd = agg.maxMcUsd === null ? _mcUsd : Math.max(agg.maxMcUsd, _mcUsd);
+			}
 
 			// Tracking: update per-trade if active
 			const session = this.activeTracking.get(tokenAddress);
@@ -504,11 +530,13 @@ class TokenMonitor {
 				// Record entry after delay using the first trade at/after entryAfterTs
 				if (!session.entryRecorded && Date.now() >= session.entryAfterTs) {
 					// snapshot pre-entry stats at this moment
-					const agg = this.tokenTradeStats.get(tokenAddress) || { total: 0, buys: 0, sells: 0, traders: new Set() };
+					const agg = this.tokenTradeStats.get(tokenAddress) || { total: 0, buys: 0, sells: 0, traders: new Set(), minMcUsd: null, maxMcUsd: null };
 					session.preEntryTotalTrades = agg.total || 0;
 					session.preEntryBuys = agg.buys || 0;
 					session.preEntrySells = agg.sells || 0;
 					session.preEntryUniqueTraders = agg.traders ? agg.traders.size : 0;
+					session.preEntryMinMcUsd = agg.minMcUsd;
+					session.preEntryMaxMcUsd = agg.maxMcUsd;
 
 					session.entryRecorded = true;
 					session.entryPrice = currentPrice;
@@ -517,7 +545,16 @@ class TokenMonitor {
 					const ts = moment().tz(config.logging.timezone).format("DD-MM-YYYY HH:mm:ss.SSS");
 					const entryPriceStr = (session.entryPrice || 0).toFixed(18);
 					const entryMcStr = Math.round(session.entryMcUsd || 0);
-					session.stream.write(`${ts} INFO Entry price: ${entryPriceStr} - Entry market cap: ${entryMcStr}\n`);
+					const buys0 = session.preEntryBuys || 0;
+					const sells0 = session.preEntrySells || 0;
+					let ratio0 = "0:0";
+					if (buys0 > 0) ratio0 = `1:${(sells0 / buys0).toFixed(2)}`;
+					else if (sells0 > 0) ratio0 = "0:1";
+					const minCap0 = session.preEntryMinMcUsd != null ? Math.round(session.preEntryMinMcUsd) : 0;
+					const maxCap0 = session.preEntryMaxMcUsd != null ? Math.round(session.preEntryMaxMcUsd) : 0;
+					session.stream.write(
+						`${ts} INFO Entry price: ${entryPriceStr} - Entry market cap: ${entryMcStr} - Buys ${buys0} - Sells ${sells0} - Ratio: ${ratio0} - Min MarketCap: ${minCap0} - Max MarketCap: ${maxCap0}\n`
+					);
 					// Current line for this same trade (will also be printed below, but ensure immediate feedback)
 					const elapsedMs0 = Date.now() - session.startedAt;
 					const h0 = String(Math.floor(elapsedMs0 / 3600000)).padStart(2, "0");
@@ -541,7 +578,7 @@ class TokenMonitor {
 					const currentPriceStr = (currentPrice || 0).toFixed(12);
 					const pctStr = `${pct.toFixed(2)}%`;
 					const maxStr = `${session.maxPct.toFixed(2)}%`;
-					const minStr = `${Math.abs(session.minPct).toFixed(2)}%`;
+					const minStr = `${session.minPct.toFixed(2)}%`;
 					const mcStr = Math.round(mcUsd || 0);
 					session.stream.write(
 						`${ts} INFO Current price: ${currentPriceStr} - Current percentage: ${pctStr} - Max: ${maxStr} - Min: ${minStr} - Market Cap ${mcStr} - Trading time: ${h}:${m}:${s}\n`
