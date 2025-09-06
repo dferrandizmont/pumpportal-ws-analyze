@@ -35,8 +35,6 @@ class PumpPortalAnalyzer {
 		priceService.start();
 		this.tokenMonitor.start();
 
-		// No mostrar estadísticas automáticamente - solo disponible via HTTP
-
 		// Set up HTTP server for remote status queries
 		this.setupHTTPServer();
 
@@ -138,6 +136,25 @@ class PumpPortalAnalyzer {
 									maxMcVolatilityRatio: Number.isFinite(tf.maxMcVolatilityRatio) ? tf.maxMcVolatilityRatio : null,
 								};
 							})(),
+							strategies: (config.strategies || []).map((s) => ({
+								id: s.id,
+								logDir: s?.tracking?.logDir,
+								filters: {
+									enabled: !!s?.trackingFilters?.enabled,
+									trackAllMints: !!s?.trackingFilters?.trackAllMints,
+									minBuys: s?.trackingFilters?.minBuys,
+									minTotalTrades: s?.trackingFilters?.minTotalTrades,
+									minUniqueTraders: s?.trackingFilters?.minUniqueTraders,
+									minBuyRatio: s?.trackingFilters?.minBuyRatio,
+									minNetBuys: s?.trackingFilters?.minNetBuys,
+									minMcUsd: s?.trackingFilters?.minMcUsd,
+									maxMcUsd: Number.isFinite(s?.trackingFilters?.maxMcUsd) ? s?.trackingFilters?.maxMcUsd : null,
+									minUniquePerTrade: s?.trackingFilters?.minUniquePerTrade,
+									minBuysPerUnique: s?.trackingFilters?.minBuysPerUnique,
+									maxAgeAtTriggerSec: Number.isFinite(s?.trackingFilters?.maxAgeAtTriggerSec) ? s?.trackingFilters?.maxAgeAtTriggerSec : null,
+									maxMcVolatilityRatio: Number.isFinite(s?.trackingFilters?.maxMcVolatilityRatio) ? s?.trackingFilters?.maxMcVolatilityRatio : null,
+								},
+							})),
 							solUsdPrice: priceService.getSolUsd(),
 							solUsdLastUpdated: priceService.getLastUpdated(),
 							tokens: tokens
@@ -202,6 +219,25 @@ class PumpPortalAnalyzer {
 											maxMcVolatilityRatio: Number.isFinite(tf.maxMcVolatilityRatio) ? tf.maxMcVolatilityRatio : null,
 										};
 									})(),
+									strategies: (config.strategies || []).map((s) => ({
+										id: s.id,
+										logDir: s?.tracking?.logDir,
+										filters: {
+											enabled: !!s?.trackingFilters?.enabled,
+											trackAllMints: !!s?.trackingFilters?.trackAllMints,
+											minBuys: s?.trackingFilters?.minBuys,
+											minTotalTrades: s?.trackingFilters?.minTotalTrades,
+											minUniqueTraders: s?.trackingFilters?.minUniqueTraders,
+											minBuyRatio: s?.trackingFilters?.minBuyRatio,
+											minNetBuys: s?.trackingFilters?.minNetBuys,
+											minMcUsd: s?.trackingFilters?.minMcUsd,
+											maxMcUsd: Number.isFinite(s?.trackingFilters?.maxMcUsd) ? s?.trackingFilters?.maxMcUsd : null,
+											minUniquePerTrade: s?.trackingFilters?.minUniquePerTrade,
+											minBuysPerUnique: s?.trackingFilters?.minBuysPerUnique,
+											maxAgeAtTriggerSec: Number.isFinite(s?.trackingFilters?.maxAgeAtTriggerSec) ? s?.trackingFilters?.maxAgeAtTriggerSec : null,
+											maxMcVolatilityRatio: Number.isFinite(s?.trackingFilters?.maxMcVolatilityRatio) ? s?.trackingFilters?.maxMcVolatilityRatio : null,
+										},
+									})),
 									solUsdPrice: priceService.getSolUsd(),
 									solUsdLastUpdated: priceService.getLastUpdated(),
 									totalTokens: quickStats.totalTokens,

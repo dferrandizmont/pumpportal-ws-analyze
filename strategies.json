@@ -1,0 +1,117 @@
+[
+	{
+		"id": "strategyOne",
+		"trackingFilters": {
+			"enabled": true,
+			"trackAllMints": false,
+			"minBuys": 5,
+			"minTotalTrades": 5,
+			"minUniqueTraders": 5,
+			"minBuyRatio": 0.55,
+			"minNetBuys": 2,
+			"minMcUsd": 1000,
+			"maxMcUsd": null,
+			"minUniquePerTrade": 0,
+			"minBuysPerUnique": 0,
+			"maxAgeAtTriggerSec": 3600,
+			"maxMcVolatilityRatio": 5
+		},
+		"tracking": {
+			"logDir": "tracking/strategyOne"
+		}
+	},
+	{
+		"id": "strategyTwo",
+		"trackingFilters": {
+			"enabled": true,
+			"trackAllMints": false,
+			"minBuys": 5,
+			"minTotalTrades": 15,
+			"minUniqueTraders": 5,
+			"minBuyRatio": 0.75,
+			"minNetBuys": 2,
+			"minMcUsd": 1000,
+			"maxMcUsd": null,
+			"minUniquePerTrade": 0.7,
+			"minBuysPerUnique": 0,
+			"maxAgeAtTriggerSec": null,
+			"maxMcVolatilityRatio": 5
+		},
+		"tracking": {
+			"logDir": "tracking/strategyTwo"
+		}
+	},
+	{
+		"id": "strategyThree",
+		"trackingFilters": {
+			"enabled": true,
+			"trackAllMints": false,
+			"minBuys": 8,
+			"minTotalTrades": 10,
+			"minUniqueTraders": 8,
+			"minBuyRatio": 0.6,
+			"minNetBuys": 5,
+			"minMcUsd": 1000,
+			"maxMcUsd": 100000,
+			"minUniquePerTrade": 0.5,
+			"minBuysPerUnique": 1.2,
+			"maxAgeAtTriggerSec": 3600,
+			"maxMcVolatilityRatio": 5
+		},
+		"tracking": {
+			"logDir": "tracking/strategyThree"
+		}
+	},
+	{
+		"id": "strategyFour",
+		"trackingFilters": {
+			"enabled": true,
+			"trackAllMints": false,
+			"minBuys": 10,
+			"minTotalTrades": 15,
+			"minUniqueTraders": 10,
+			"minBuyRatio": 0.65,
+			"minNetBuys": 5,
+			"minMcUsd": 2500,
+			"maxMcUsd": 100000,
+			"minUniquePerTrade": 0.6,
+			"minBuysPerUnique": 1.3,
+			"maxAgeAtTriggerSec": 3600,
+			"maxMcVolatilityRatio": 5
+		},
+		"tracking": {
+			"logDir": "tracking/strategyFour"
+		}
+	},
+	{
+		"id": "strategyFive",
+		"trackingFilters": {
+			"enabled": true,
+			"trackAllMints": false,
+			"minBuys": 5,
+			"minTotalTrades": 5,
+			"minUniqueTraders": 5,
+			"minBuyRatio": 0.55,
+			"minNetBuys": 2,
+			"minMcUsd": 1000,
+			"maxMcUsd": null,
+			"minUniquePerTrade": 0,
+			"minBuysPerUnique": 0,
+			"maxAgeAtTriggerSec": 7200,
+			"maxMcVolatilityRatio": null
+		},
+		"tracking": {
+			"logDir": "tracking/strategyFive"
+		}
+	},
+	{
+		"id": "catchAll",
+		"trackingFilters": {
+			"enabled": true,
+			"trackAllMints": true
+		},
+		"tracking": {
+			"logDir": "tracking/catchAll"
+		}
+	}
+]

@@ -140,18 +140,21 @@ class TokenMonitor {
 
 	// ===== Tracking subsystem =====
 
-	startTracking(tokenAddress, triggerCtx = {}) {
+	startTracking(tokenAddress, strategy, triggerCtx = {}) {
 		if (!config.tracking.enabled) return;
-		if (this.activeTracking.has(tokenAddress)) return;
+		if (!strategy || !strategy.id) return;
+
+		const byToken = this.activeTracking.get(tokenAddress) || new Map();
+		if (byToken.has(strategy.id)) return;
 
 		const now = Date.now();
-		const logDir = config.tracking.logDir;
+		const logDir = strategy?.tracking?.logDir || config.tracking.logDir;
 		try {
 			if (!fs.existsSync(logDir)) {
 				fs.mkdirSync(logDir, { recursive: true });
 			}
 		} catch (e) {
-			logger.errorMonitor("Failed to ensure tracking log directory", { error: e.message, dir: logDir });
+			logger.errorMonitor("Failed to ensure tracking log directory", { error: e.message, dir: logDir, strategyId: strategy.id });
 			return;
 		}
 
@@ -161,9 +164,10 @@ class TokenMonitor {
 		const session = {
 			filePath,
 			stream,
+			strategyId: strategy.id,
 			startedAt: now,
 			lastActivityAt: now,
-			entryAfterTs: now + config.tracking.entryDelayMs,
+			entryAfterTs: now + (strategy?.tracking?.entryDelayMs ?? config.tracking.entryDelayMs),
 			entryRecorded: false,
 			entryPrice: null,
 			entryMcUsd: null,
@@ -195,12 +199,13 @@ class TokenMonitor {
 		};
 
 		// timers
-		session.inactivityTimer = setTimeout(() => this.stopTracking(tokenAddress, "inactivity"), config.tracking.inactivityMs);
-		session.hardStopTimer = setTimeout(() => this.stopTracking(tokenAddress, "max_window"), config.tracking.maxWindowMs);
+		session.inactivityTimer = setTimeout(() => this.stopTracking(tokenAddress, strategy.id, "inactivity"), strategy?.tracking?.inactivityMs ?? config.tracking.inactivityMs);
+		session.hardStopTimer = setTimeout(() => this.stopTracking(tokenAddress, strategy.id, "max_window"), strategy?.tracking?.maxWindowMs ?? config.tracking.maxWindowMs);
 		// entry fallback timer (record entry from threshold data if no trade arrived yet)
 		session.entryTimer = setTimeout(() => {
 			try {
-				const sess = this.activeTracking.get(tokenAddress);
+				const mapForToken = this.activeTracking.get(tokenAddress);
+				const sess = mapForToken ? mapForToken.get(strategy.id) : null;
 				if (!sess || sess.entryRecorded) return;
 				const solUsd = priceService.getSolUsd();
 				const mcSol = typeof sess.thresholdMcSol === "number" ? sess.thresholdMcSol : 0;
@@ -241,16 +246,19 @@ class TokenMonitor {
 					`${ts} INFO Current price: ${entryPrice.toFixed(12)} - Current percentage: 0.00% - Max: 0.00% - Min: 0.00% - Market Cap ${Math.round(mcUsd)} - Trading time: ${h}:${m}:${s}\n`
 				);
 			} catch (e) {
-				logger.errorMonitor("Error recording fallback entry", { error: e.message, tokenAddress });
+				logger.errorMonitor("Error recording fallback entry", { error: e.message, tokenAddress, strategyId: strategy.id });
 			}
-		}, config.tracking.entryDelayMs);
+		}, strategy?.tracking?.entryDelayMs ?? config.tracking.entryDelayMs);
 
-		this.activeTracking.set(tokenAddress, session);
-		logger.tokenMonitor("Tracking started for token", { tokenAddress, filePath });
+		byToken.set(strategy.id, session);
+		this.activeTracking.set(tokenAddress, byToken);
+
+		logger.tokenMonitor("Tracking started for token", { tokenAddress, strategyId: strategy.id, filePath });
 	}
 
-	stopTracking(tokenAddress, reason) {
-		const session = this.activeTracking.get(tokenAddress);
+	stopTracking(tokenAddress, strategyId, reason) {
+		const byToken = this.activeTracking.get(tokenAddress);
+		const session = byToken ? byToken.get(strategyId) : null;
 		if (!session) return;
 		try {
 			if (session.inactivityTimer) clearTimeout(session.inactivityTimer);
@@ -315,6 +323,7 @@ class TokenMonitor {
 				const summaryForGlobal = {
 					...summary,
 					tokenAddress,
+					strategyId: session.strategyId,
 					tokenName: tokenInfo.name || null,
 					tokenSymbol: tokenInfo.symbol || null,
 					outcome,
@@ -338,29 +347,45 @@ class TokenMonitor {
 							: null,
 					thresholdMcUsdStr: typeof summary.thresholdMcUsd === "number" && isFinite(summary.thresholdMcUsd) ? formatCurrencyEs(summary.thresholdMcUsd, "$") : null,
 				};
-				const summariesLogPath = path.join("logs", "tracking-summaries.log");
-				if (!fs.existsSync("logs")) {
-					fs.mkdirSync("logs", { recursive: true });
+				const logsDir = "logs";
+				if (!fs.existsSync(logsDir)) {
+					fs.mkdirSync(logsDir, { recursive: true });
 				}
+				// Combined global summaries file
+				const summariesLogPath = path.join(logsDir, "tracking-summaries.log");
 				fs.appendFileSync(summariesLogPath, `${ts} INFO ${JSON.stringify(summaryForGlobal)}\n`);
+				// Per-strategy summaries file
+				const stratId = summaryForGlobal.strategyId || "default";
+				const perStrategyPath = path.join(logsDir, `tracking-summaries-${stratId}.log`);
+				fs.appendFileSync(perStrategyPath, `${ts} INFO ${JSON.stringify(summaryForGlobal)}\n`);
 			} catch (e) {
 				logger.errorMonitor("Failed to write global summary log", { error: e.message, tokenAddress });
 			}
 			session.stream.end();
-			this.wsClient.unsubscribeTokenTrades([tokenAddress]);
-			logger.tokenMonitor("Tracking stopped for token", { tokenAddress, reason, filePath: session.filePath });
+			logger.tokenMonitor("Tracking stopped for token", { tokenAddress, strategyId, reason, filePath: session.filePath });
 		} catch (e) {
-			logger.errorMonitor("Error stopping tracking", { error: e.message, tokenAddress });
+			logger.errorMonitor("Error stopping tracking", { error: e.message, tokenAddress, strategyId });
 		} finally {
-			this.activeTracking.delete(tokenAddress);
+			if (byToken) {
+				byToken.delete(strategyId);
+				if (byToken.size === 0) {
+					this.activeTracking.delete(tokenAddress);
+					try {
+						this.wsClient.unsubscribeTokenTrades([tokenAddress]);
+					} catch {
+						// Ignore unsubscribe errors
+					}
+				}
+			}
 		}
 	}
 
-	_resetTrackingInactivity(tokenAddress) {
-		const session = this.activeTracking.get(tokenAddress);
+	_resetTrackingInactivity(tokenAddress, strategyId) {
+		const byToken = this.activeTracking.get(tokenAddress);
+		const session = byToken ? byToken.get(strategyId) : null;
 		if (!session) return;
 		if (session.inactivityTimer) clearTimeout(session.inactivityTimer);
-		session.inactivityTimer = setTimeout(() => this.stopTracking(tokenAddress, "inactivity"), config.tracking.inactivityMs);
+		session.inactivityTimer = setTimeout(() => this.stopTracking(tokenAddress, strategyId, "inactivity"), config.tracking.inactivityMs);
 	}
 
 	handleNewToken(tokenData) {
@@ -563,84 +588,86 @@ class TokenMonitor {
 				agg.maxMcUsd = agg.maxMcUsd === null ? _mcUsd : Math.max(agg.maxMcUsd, _mcUsd);
 			}
 
-			// Tracking: update per-trade if active
-			const session = this.activeTracking.get(tokenAddress);
-			if (session) {
-				session.tradeCount += 1;
-				if (txType === "buy") session.buyCount += 1;
-				if (txType === "sell") session.sellCount += 1;
-				session.lastActivityAt = Date.now();
-				this._resetTrackingInactivity(tokenAddress);
+			// Tracking: update per-trade if active (for all strategies on this token)
+			const sessionsForToken = this.activeTracking.get(tokenAddress);
+			if (sessionsForToken && sessionsForToken.size > 0) {
+				for (const [strategyId, session] of sessionsForToken.entries()) {
+					session.tradeCount += 1;
+					if (txType === "buy") session.buyCount += 1;
+					if (txType === "sell") session.sellCount += 1;
+					session.lastActivityAt = Date.now();
+					this._resetTrackingInactivity(tokenAddress, strategyId);
 
-				let currentPrice = typeof price === "number" && isFinite(price) ? price : undefined;
-				if (currentPrice === undefined) {
-					if (typeof solAmount === "number" && typeof tokenAmount === "number" && tokenAmount > 0) {
-						currentPrice = solAmount / tokenAmount;
-					} else {
-						currentPrice = 0;
+					let currentPrice = typeof price === "number" && isFinite(price) ? price : undefined;
+					if (currentPrice === undefined) {
+						if (typeof solAmount === "number" && typeof tokenAmount === "number" && tokenAmount > 0) {
+							currentPrice = solAmount / tokenAmount;
+						} else {
+							currentPrice = 0;
+						}
 					}
-				}
 
-				const solUsd = priceService.getSolUsd();
-				const mcSol = typeof marketCapSol === "number" ? marketCapSol : 0;
-				const mcUsd = typeof solUsd === "number" ? mcSol * solUsd : 0;
+					const solUsd = priceService.getSolUsd();
+					const mcSol = typeof marketCapSol === "number" ? marketCapSol : 0;
+					const mcUsd = typeof solUsd === "number" ? mcSol * solUsd : 0;
 
-				// Record entry after delay using the first trade at/after entryAfterTs
-				if (!session.entryRecorded && Date.now() >= session.entryAfterTs) {
-					// snapshot pre-entry stats at this moment
-					const agg = this.tokenTradeStats.get(tokenAddress) || { total: 0, buys: 0, sells: 0, traders: new Set(), minMcUsd: null, maxMcUsd: null };
-					session.preEntryTotalTrades = agg.total || 0;
-					session.preEntryBuys = agg.buys || 0;
-					session.preEntrySells = agg.sells || 0;
-					session.preEntryUniqueTraders = agg.traders ? agg.traders.size : 0;
-					session.preEntryMinMcUsd = agg.minMcUsd;
-					session.preEntryMaxMcUsd = agg.maxMcUsd;
+					// Record entry after delay using the first trade at/after entryAfterTs
+					if (!session.entryRecorded && Date.now() >= session.entryAfterTs) {
+						// snapshot pre-entry stats at this moment
+						const agg2 = this.tokenTradeStats.get(tokenAddress) || { total: 0, buys: 0, sells: 0, traders: new Set(), minMcUsd: null, maxMcUsd: null };
+						session.preEntryTotalTrades = agg2.total || 0;
+						session.preEntryBuys = agg2.buys || 0;
+						session.preEntrySells = agg2.sells || 0;
+						session.preEntryUniqueTraders = agg2.traders ? agg2.traders.size : 0;
+						session.preEntryMinMcUsd = agg2.minMcUsd;
+						session.preEntryMaxMcUsd = agg2.maxMcUsd;
 
-					session.entryRecorded = true;
-					session.entryPrice = currentPrice;
-					session.entryMcSol = mcSol;
-					session.entryMcUsd = mcUsd;
-					const ts = moment().tz(config.logging.timezone).format("DD-MM-YYYY HH:mm:ss.SSS");
-					const entryPriceStr = (session.entryPrice || 0).toFixed(18);
-					const entryMcStr = Math.round(session.entryMcUsd || 0);
-					const buys0 = session.preEntryBuys || 0;
-					const sells0 = session.preEntrySells || 0;
-					let ratio0 = "0:0";
-					if (buys0 > 0) ratio0 = `1:${(sells0 / buys0).toFixed(2)}`;
-					else if (sells0 > 0) ratio0 = "0:1";
-					const minCap0 = session.preEntryMinMcUsd != null ? Math.round(session.preEntryMinMcUsd) : 0;
-					const maxCap0 = session.preEntryMaxMcUsd != null ? Math.round(session.preEntryMaxMcUsd) : 0;
-					session.stream.write(
-						`${ts} INFO Entry price: ${entryPriceStr} - Entry market cap: ${entryMcStr} - Buys ${buys0} - Sells ${sells0} - Ratio: ${ratio0} - Min MarketCap: ${minCap0} - Max MarketCap: ${maxCap0}\n`
-					);
-					// Current line for this same trade (will also be printed below, but ensure immediate feedback)
-					const elapsedMs0 = Date.now() - session.startedAt;
-					const h0 = String(Math.floor(elapsedMs0 / 3600000)).padStart(2, "0");
-					const m0 = String(Math.floor((elapsedMs0 % 3600000) / 60000)).padStart(2, "0");
-					const s0 = String(Math.floor((elapsedMs0 % 60000) / 1000)).padStart(2, "0");
-					session.stream.write(
-						`${ts} INFO Current price: ${(currentPrice || 0).toFixed(12)} - Current percentage: 0.00% - Max: 0.00% - Min: 0.00% - Market Cap ${entryMcStr} - Trading time: ${h0}:${m0}:${s0}\n`
-					);
-				}
+						session.entryRecorded = true;
+						session.entryPrice = currentPrice;
+						session.entryMcSol = mcSol;
+						session.entryMcUsd = mcUsd;
+						const ts = moment().tz(config.logging.timezone).format("DD-MM-YYYY HH:mm:ss.SSS");
+						const entryPriceStr = (session.entryPrice || 0).toFixed(18);
+						const entryMcStr = Math.round(session.entryMcUsd || 0);
+						const buys0 = session.preEntryBuys || 0;
+						const sells0 = session.preEntrySells || 0;
+						let ratio0 = "0:0";
+						if (buys0 > 0) ratio0 = `1:${(sells0 / buys0).toFixed(2)}`;
+						else if (sells0 > 0) ratio0 = "0:1";
+						const minCap0 = session.preEntryMinMcUsd != null ? Math.round(session.preEntryMinMcUsd) : 0;
+						const maxCap0 = session.preEntryMaxMcUsd != null ? Math.round(session.preEntryMaxMcUsd) : 0;
+						session.stream.write(
+							`${ts} INFO Entry price: ${entryPriceStr} - Entry market cap: ${entryMcStr} - Buys ${buys0} - Sells ${sells0} - Ratio: ${ratio0} - Min MarketCap: ${minCap0} - Max MarketCap: ${maxCap0}\n`
+						);
+						// Current line for this same trade (will also be printed below, but ensure immediate feedback)
+						const elapsedMs0 = Date.now() - session.startedAt;
+						const h0 = String(Math.floor(elapsedMs0 / 3600000)).padStart(2, "0");
+						const m0 = String(Math.floor((elapsedMs0 % 3600000) / 60000)).padStart(2, "0");
+						const s0 = String(Math.floor((elapsedMs0 % 60000) / 1000)).padStart(2, "0");
+						session.stream.write(
+							`${ts} INFO Current price: ${(currentPrice || 0).toFixed(12)} - Current percentage: 0.00% - Max: 0.00% - Min: 0.00% - Market Cap ${entryMcStr} - Trading time: ${h0}:${m0}:${s0}\n`
+						);
+					}
 
-				// If entry recorded, write current status
-				if (session.entryRecorded) {
-					const pct = session.entryMcUsd > 0 ? ((mcUsd - session.entryMcUsd) / session.entryMcUsd) * 100 : 0;
-					session.minPct = Math.min(session.minPct, pct);
-					session.maxPct = Math.max(session.maxPct, pct);
-					const elapsedMs = Date.now() - session.startedAt;
-					const h = String(Math.floor(elapsedMs / 3600000)).padStart(2, "0");
-					const m = String(Math.floor((elapsedMs % 3600000) / 60000)).padStart(2, "0");
-					const s = String(Math.floor((elapsedMs % 60000) / 1000)).padStart(2, "0");
-					const ts = moment().tz(config.logging.timezone).format("DD-MM-YYYY HH:mm:ss.SSS");
-					const currentPriceStr = (currentPrice || 0).toFixed(12);
-					const pctStr = `${pct.toFixed(2)}%`;
-					const maxStr = `${session.maxPct.toFixed(2)}%`;
-					const minStr = `${session.minPct.toFixed(2)}%`;
-					const mcStr = Math.round(mcUsd || 0);
-					session.stream.write(
-						`${ts} INFO Current price: ${currentPriceStr} - Current percentage: ${pctStr} - Max: ${maxStr} - Min: ${minStr} - Market Cap ${mcStr} - Trading time: ${h}:${m}:${s}\n`
-					);
+					// If entry recorded, write current status
+					if (session.entryRecorded) {
+						const pct = session.entryMcUsd > 0 ? ((mcUsd - session.entryMcUsd) / session.entryMcUsd) * 100 : 0;
+						session.minPct = Math.min(session.minPct, pct);
+						session.maxPct = Math.max(session.maxPct, pct);
+						const elapsedMs = Date.now() - session.startedAt;
+						const h = String(Math.floor(elapsedMs / 3600000)).padStart(2, "0");
+						const m = String(Math.floor((elapsedMs % 3600000) / 60000)).padStart(2, "0");
+						const s = String(Math.floor((elapsedMs % 60000) / 1000)).padStart(2, "0");
+						const ts = moment().tz(config.logging.timezone).format("DD-MM-YYYY HH:mm:ss.SSS");
+						const currentPriceStr = (currentPrice || 0).toFixed(12);
+						const pctStr = `${pct.toFixed(2)}%`;
+						const maxStr = `${session.maxPct.toFixed(2)}%`;
+						const minStr = `${session.minPct.toFixed(2)}%`;
+						const mcStr = Math.round(mcUsd || 0);
+						session.stream.write(
+							`${ts} INFO Current price: ${currentPriceStr} - Current percentage: ${pctStr} - Max: ${maxStr} - Min: ${minStr} - Market Cap ${mcStr} - Trading time: ${h}:${m}:${s}\n`
+						);
+					}
 				}
 			}
 		} catch (error) {
@@ -810,7 +837,6 @@ class TokenMonitor {
 						: null;
 
 			// Optional pre-conditions to start tracking (from ENV)
-			let passesFilters = true;
 			const f = config.trackingFilters || { enabled: false };
 			// Precompute metrics for logging and evaluation
 			const total = stats.total || 0;
@@ -825,30 +851,40 @@ class TokenMonitor {
 			const mcUsd = typeof thresholdMcUsd === "number" ? thresholdMcUsd : 0;
 			const volRatio = stats.minMcUsd && stats.minMcUsd > 0 && stats.maxMcUsd ? stats.maxMcUsd / stats.minMcUsd : null;
 
-			if (f.enabled) {
-				passesFilters =
-					buys >= (f.minBuys || 0) &&
-					total >= (f.minTotalTrades || 0) &&
-					uniq >= (f.minUniqueTraders || 0) &&
-					buyRatio >= (f.minBuyRatio || 0) &&
-					netBuys >= (f.minNetBuys || 0) &&
-					mcUsd >= (Number.isFinite(f.minMcUsd) ? f.minMcUsd : 0) &&
-					mcUsd <= (Number.isFinite(f.maxMcUsd) ? f.maxMcUsd : Infinity) &&
-					uniquePerTrade >= (f.minUniquePerTrade || 0) &&
-					buysPerUnique >= (f.minBuysPerUnique || 0) &&
-					(ageAtTriggerSec === null || ageAtTriggerSec <= (Number.isFinite(f.maxAgeAtTriggerSec) ? f.maxAgeAtTriggerSec : Infinity)) &&
-					(volRatio === null || volRatio <= (Number.isFinite(f.maxMcVolatilityRatio) ? f.maxMcVolatilityRatio : Infinity));
-			}
+			// Check if token passes global filters (f.enabled check is done in strategy loop below)
 
-			// Decide whether to start tracking based on config
-			let shouldTrack = true;
-			if (f && f.trackAllMints === true) {
-				logger.tokenMonitor("TRACK_ALL_MINTS enabled: overriding filters to start tracking", { tokenAddress });
-				shouldTrack = true;
-			} else if (f && f.enabled) {
-				shouldTrack = passesFilters;
+			// Evaluate each configured strategy independently and start per-strategy sessions
+			const strategies =
+				Array.isArray(config.strategies) && config.strategies.length > 0 ? config.strategies : [{ id: "default", trackingFilters: f, tracking: config.tracking }];
+			for (const strat of strategies) {
+				const sf = strat.trackingFilters || { enabled: false };
+				let stratPasses = true;
+				if (sf.enabled) {
+					stratPasses =
+						buys >= (sf.minBuys || 0) &&
+						total >= (sf.minTotalTrades || 0) &&
+						uniq >= (sf.minUniqueTraders || 0) &&
+						buyRatio >= (sf.minBuyRatio || 0) &&
+						netBuys >= (sf.minNetBuys || 0) &&
+						mcUsd >= (Number.isFinite(sf.minMcUsd) ? sf.minMcUsd : 0) &&
+						mcUsd <= (Number.isFinite(sf.maxMcUsd) ? sf.maxMcUsd : Infinity) &&
+						uniquePerTrade >= (sf.minUniquePerTrade || 0) &&
+						buysPerUnique >= (sf.minBuysPerUnique || 0) &&
+						(ageAtTriggerSec === null || ageAtTriggerSec <= (Number.isFinite(sf.maxAgeAtTriggerSec) ? sf.maxAgeAtTriggerSec : Infinity)) &&
+						(volRatio === null || volRatio <= (Number.isFinite(sf.maxMcVolatilityRatio) ? sf.maxMcVolatilityRatio : Infinity));
+				}
+
+				let shouldTrack = true;
+				if (sf && sf.trackAllMints === true) {
+					logger.tokenMonitor("TRACK_ALL_MINTS enabled: overriding filters to start tracking", { tokenAddress, strategyId: strat.id });
+					shouldTrack = true;
+				} else if (sf && sf.enabled) {
+					shouldTrack = stratPasses;
+				}
+
 				if (!shouldTrack) {
-					logger.tokenMonitor("Tracking filters not met; skipping tracking start", {
+					logger.tokenMonitor("Tracking filters not met; skipping strategy", {
+						strategyId: strat.id,
 						tokenAddress,
 						buys,
 						sells,
@@ -861,22 +897,26 @@ class TokenMonitor {
 						buysPerUnique: buysPerUnique.toFixed(3),
 						ageAtTriggerSec,
 						volatilityRatio: volRatio,
-						filters: f,
+						filters: sf,
 					});
-					return;
+					continue;
+				}
+
+				const existing = this.activeTracking.get(tokenAddress);
+				if (!existing || !existing.has(strat.id)) {
+					this.startTracking(tokenAddress, strat, {
+						triggerAt: triggerAt.toISOString(),
+						ageAtTriggerSec,
+						preTotalTrades: stats.total || 0,
+						preBuys: stats.buys || 0,
+						preSells: stats.sells || 0,
+						preUniqueTraders: stats.traders ? stats.traders.size : 0,
+						thresholdMcSol,
+						thresholdMcUsd,
+						thresholdPrice,
+					});
 				}
 			}
-			this.startTracking(tokenAddress, {
-				triggerAt: triggerAt.toISOString(),
-				ageAtTriggerSec,
-				preTotalTrades: stats.total || 0,
-				preBuys: stats.buys || 0,
-				preSells: stats.sells || 0,
-				preUniqueTraders: stats.traders ? stats.traders.size : 0,
-				thresholdMcSol,
-				thresholdMcUsd,
-				thresholdPrice,
-			});
 		}
 
 		// If creator fully exited position, record market caps
