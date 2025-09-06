@@ -58,10 +58,6 @@ function formatDurationHMS(totalSeconds) {
 	return `${pad(h)}:${pad(m)}:${pad(sec)}`;
 }
 
-function formatMaybeTimeEs(dateLike) {
-	return dateLike ? formatTimeEs(dateLike) : "Nunca";
-}
-
 // Estados de venta por reglas acordadas
 function getSellState(percentage, threshold = 80) {
 	if (!isFinite(percentage)) percentage = 0;

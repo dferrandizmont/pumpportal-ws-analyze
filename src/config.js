@@ -40,6 +40,37 @@ const config = {
 		creatorSellThreshold: parseFloat(process.env.CREATOR_SELL_THRESHOLD) || 80.0,
 	},
 
+	// Tracking pre-conditions (to start tracking after creator sells)
+	trackingFilters: {
+		enabled: process.env.TRACK_FILTERS_ENABLED === "true",
+		minBuys: parseFloat(process.env.TRACK_MIN_BUYS ?? "0"),
+		minTotalTrades: parseFloat(process.env.TRACK_MIN_TOTAL_TRADES ?? "0"),
+		minUniqueTraders: parseFloat(process.env.TRACK_MIN_UNIQUE_TRADERS ?? "0"),
+		minBuyRatio: parseFloat(process.env.TRACK_MIN_BUY_RATIO ?? "0"),
+		minNetBuys: parseFloat(process.env.TRACK_MIN_NET_BUYS ?? "0"),
+		minMcUsd: parseFloat(process.env.TRACK_MIN_MC_USD ?? "0"),
+		maxMcUsd: (() => {
+			const v = process.env.TRACK_MAX_MC_USD;
+			if (v === undefined || v === null || v === "") return Infinity;
+			const n = parseFloat(v);
+			return Number.isFinite(n) ? n : Infinity;
+		})(),
+		minUniquePerTrade: parseFloat(process.env.TRACK_MIN_UNIQUE_PER_TRADE ?? "0"),
+		minBuysPerUnique: parseFloat(process.env.TRACK_MIN_BUYS_PER_UNIQUE ?? "0"),
+		maxAgeAtTriggerSec: (() => {
+			const v = process.env.TRACK_MAX_AGE_AT_TRIGGER_SEC;
+			if (!v) return Infinity;
+			const n = parseFloat(v);
+			return Number.isFinite(n) ? n : Infinity;
+		})(),
+		maxMcVolatilityRatio: (() => {
+			const v = process.env.TRACK_MAX_MC_VOLATILITY_RATIO;
+			if (!v) return Infinity;
+			const n = parseFloat(v);
+			return Number.isFinite(n) ? n : Infinity;
+		})(),
+	},
+
 	// HTTP Server Configuration
 	http: {
 		port: parseInt(process.env.HTTP_PORT) || 3000,

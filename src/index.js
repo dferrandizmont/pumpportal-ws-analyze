@@ -25,6 +25,8 @@ class PumpPortalAnalyzer {
 			timezone: config.logging.timezone,
 			monitorCreatorSells: config.app.monitorCreatorSells,
 			creatorSellThreshold: config.thresholds.creatorSellThreshold,
+			trackingFiltersEnabled: config.trackingFilters?.enabled || false,
+			trackingFilters: config.trackingFilters,
 		});
 
 		this.isRunning = true;

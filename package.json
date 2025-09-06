@@ -8,6 +8,8 @@
 		"start": "node src/index.js",
 		"dev": "nodemon src/index.js",
 		"status": "node status-client.js",
+		"split:summaries": "node scripts/analysis/split-summaries-by-outcome.js",
+		"analyze:good": "node scripts/analysis/analyze-good-predictors.js",
 		"test": "echo \"No tests specified\" && exit 0",
 		"lint": "eslint . --ext .js",
 		"lint:fix": "eslint . --ext .js --fix",

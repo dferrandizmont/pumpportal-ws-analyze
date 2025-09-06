@@ -101,7 +101,7 @@ class TokenMonitor {
 				// Asegurar desuscripción del token en el WS antes de limpiar estructuras locales
 				try {
 					this.wsClient.unsubscribeTokenTrades([tokenAddress]);
-				} catch (e) {
+				} catch {
 					// Continuar limpieza aunque falle el WS
 				}
 				this.tokenSellTracking.delete(tokenAddress);
@@ -793,8 +793,9 @@ class TokenMonitor {
 
 			console.info(`[ALERT] Creator ${creatorAddress} has sold ${totalSoldPercentage.toFixed(2)}% of tokens in ${tokenInfo.name} (${tokenInfo.symbol})!`);
 			tokenTracking.thresholdAlerted = true;
+
 			// Snapshot pre-trigger stats and pass to tracker
-			const stats = this.tokenTradeStats.get(tokenAddress) || { total: 0, buys: 0, sells: 0, traders: new Set() };
+			const stats = this.tokenTradeStats.get(tokenAddress) || { total: 0, buys: 0, sells: 0, traders: new Set(), minMcUsd: null, maxMcUsd: null };
 			const solUsd = priceService.getSolUsd();
 			const thresholdMcSol = typeof marketCapSol === "number" ? marketCapSol : null;
 			const thresholdMcUsd = thresholdMcSol !== null && typeof solUsd === "number" ? thresholdMcSol * solUsd : null;
@@ -807,6 +808,59 @@ class TokenMonitor {
 					: typeof solAmount === "number" && typeof tokenAmount === "number" && tokenAmount > 0
 						? solAmount / tokenAmount
 						: null;
+
+			// Optional pre-conditions to start tracking (from ENV)
+			let passesFilters = true;
+			const f = config.trackingFilters || { enabled: false };
+			if (f.enabled) {
+				const total = stats.total || 0;
+				const buys = stats.buys || 0;
+				const sells = stats.sells || 0;
+				const uniq = stats.traders ? stats.traders.size : 0;
+				const denom = buys + sells;
+				const buyRatio = denom > 0 ? buys / denom : 0;
+				const netBuys = buys - sells;
+				const uniquePerTrade = total > 0 ? uniq / total : 0;
+				const buysPerUnique = uniq > 0 ? buys / uniq : 0;
+				const mcUsd = typeof thresholdMcUsd === "number" ? thresholdMcUsd : 0;
+				const volRatio = stats.minMcUsd && stats.minMcUsd > 0 && stats.maxMcUsd ? stats.maxMcUsd / stats.minMcUsd : null;
+
+				passesFilters =
+					buys >= (f.minBuys || 0) &&
+					total >= (f.minTotalTrades || 0) &&
+					uniq >= (f.minUniqueTraders || 0) &&
+					buyRatio >= (f.minBuyRatio || 0) &&
+					netBuys >= (f.minNetBuys || 0) &&
+					mcUsd >= (Number.isFinite(f.minMcUsd) ? f.minMcUsd : 0) &&
+					mcUsd <= (Number.isFinite(f.maxMcUsd) ? f.maxMcUsd : Infinity) &&
+					uniquePerTrade >= (f.minUniquePerTrade || 0) &&
+					buysPerUnique >= (f.minBuysPerUnique || 0) &&
+					(ageAtTriggerSec === null || ageAtTriggerSec <= (Number.isFinite(f.maxAgeAtTriggerSec) ? f.maxAgeAtTriggerSec : Infinity)) &&
+					(volRatio === null || volRatio <= (Number.isFinite(f.maxMcVolatilityRatio) ? f.maxMcVolatilityRatio : Infinity));
+
+				if (!passesFilters) {
+					logger.tokenMonitor("Tracking filters not met; skipping tracking start", {
+						tokenAddress,
+						buys,
+						sells,
+						total,
+						uniq,
+						buyRatio: buyRatio.toFixed(3),
+						netBuys,
+						mcUsd: Math.round(mcUsd),
+						uniquePerTrade: uniquePerTrade.toFixed(3),
+						buysPerUnique: buysPerUnique.toFixed(3),
+						ageAtTriggerSec,
+						volatilityRatio: volRatio,
+						filters: f,
+					});
+				}
+			}
+			// Only start tracking if filters pass or filters are disabled
+			if (f.enabled && !passesFilters) {
+				logger.tokenMonitor("Tracking not started due to filters", { tokenAddress });
+				return;
+			}
 			this.startTracking(tokenAddress, {
 				triggerAt: triggerAt.toISOString(),
 				ageAtTriggerSec,
