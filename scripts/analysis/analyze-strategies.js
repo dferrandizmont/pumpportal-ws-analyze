@@ -250,11 +250,19 @@ function buildHtml({ baseline, _totalMarked, _totalGoodMarked, rows, strategiesC
 
 	function renderCards() {
 		if (!Array.isArray(strategiesCfg) || strategiesCfg.length === 0) return '<div class="card muted">No se encontró strategies.json</div>';
+		const idsWithData = new Set(rows.map((r) => r.strategyId));
 		const items = strategiesCfg
 			.map((s) => {
 				const id = s.id || "strategy";
 				const f = s.trackingFilters || {};
 				const env = makeEnvFromFilters(f);
+				const trackingDir = s.tracking && s.tracking.logDir ? s.tracking.logDir : null;
+				let logsCount = 0;
+				try {
+					if (trackingDir && fs.existsSync(trackingDir)) {
+						logsCount = fs.readdirSync(trackingDir).filter((f) => f.endsWith("-websocket.log")).length;
+					}
+				} catch {}
 				const chips = [
 					f.minBuyRatio != null ? `buyRatio ≥ ${fmtNum(f.minBuyRatio, 2)}` : null,
 					f.minBuys != null ? `preBuys ≥ ${fmtNum(f.minBuys, 0)}` : null,
@@ -273,7 +281,7 @@ function buildHtml({ baseline, _totalMarked, _totalGoodMarked, rows, strategiesC
 					.join("");
 				return `
         <div class="card">
-          <h3>${htmlesc(id)}</h3>
+          <h3>${htmlesc(id)} ${!idsWithData.has(id) ? '<span class="badge">sin datos aún</span>' : ""} ${trackingDir ? '<span class="badge">logs: ' + fmtNum(logsCount, 0) + "</span>" : ""}</h3>
           <div class="cond-badges">${chips || ""}</div>
           <div class="small" style="margin-top:10px;">
             <div>Snippet .env (copiar/pegar):</div>

@@ -4,11 +4,14 @@ import { readJsonl, ensureDirSync, writeCsv } from "../lib/jsonl.js";
 import { computeFeatures, passesRule } from "../lib/features.js";
 import { parseTrackingSessions } from "./lib/tracking-parse.js";
 
-// Usage: node scripts/analysis/backtest/backtest-strategies.js [outcomesDir] [trackingDir] [outputDir]
-// Defaults: outcomesDir=logs/summary-outcomes, trackingDir=tracking, outputDir=backtest-output
+// Usage: node scripts/analysis/backtest/backtest-strategies.js [outcomesDir] [trackingDirOrRoot] [outputDir]
+// Defaults: outcomesDir=logs/summary-outcomes, trackingDirOrRoot=tracking, outputDir=backtest-output
+// Notes:
+// - If records contain strategyId and strategies.json exists, the script will use per-strategy logDir from strategies.json.
+// - Otherwise it will read logs from the single trackingDirOrRoot.
 
 const outcomesDir = process.argv[2] || path.join("logs", "summary-outcomes");
-const trackingDir = process.argv[3] || path.join("tracking");
+const trackingDirRoot = process.argv[3] || path.join("tracking");
 const outputDir = process.argv[4] || path.join("backtest-output");
 ensureDirSync(outputDir);
 const LIMIT = parseInt(process.env.BT_LIMIT || "0", 10) || 0; // 0 = no limit
@@ -32,25 +35,47 @@ function keySession(startedAt, endedAt) {
 }
 
 async function buildEarlyMetricsIndex(records) {
-	// Group records by tokenAddress for efficient parsing
-	const byToken = new Map();
-	for (const r of records) {
-		const t = r.tokenAddress;
-		if (!t) continue;
-		if (!byToken.has(t)) byToken.set(t, []);
-		byToken.get(t).push(r);
+	// Load strategies.json if present to resolve per-strategy logDir
+	let strategies = null;
+	try {
+		const strategiesFile = path.join(process.cwd(), "strategies.json");
+		if (fs.existsSync(strategiesFile)) {
+			const raw = fs.readFileSync(strategiesFile, "utf8");
+			const arr = JSON.parse(raw);
+			if (Array.isArray(arr)) {
+				strategies = new Map(arr.map((s) => [s.id, s?.tracking?.logDir || path.join(trackingDirRoot, s.id)]));
+			}
+		}
+	} catch {
+		// ignore, fallback to single-dir mode
 	}
 
-	const index = new Map(); // token -> Map(keySession -> metrics)
+	// Group by strategyId and token so we can use per-strategy folders when available
+	const byStratToken = new Map(); // stratId|null -> Set(tokens)
+	for (const r of records) {
+		const token = r.tokenAddress;
+		if (!token) continue;
+		const sid = r.strategyId || null; // null if not present
+		const key = sid || "__default__";
+		if (!byStratToken.has(key)) byStratToken.set(key, new Set());
+		byStratToken.get(key).add(token);
+	}
 
-	for (const token of byToken.keys()) {
-		const filePath = path.join(trackingDir, `${token}-websocket.log`);
-		const sessions = await parseTrackingSessions(filePath);
-		const map = new Map();
-		for (const s of sessions) {
-			map.set(keySession(s.startedAt, s.endedAt), s.metrics);
+	// index: strategyId|null -> token -> Map(keySession -> metrics)
+	const index = new Map();
+
+	for (const [sid, tokens] of byStratToken.entries()) {
+		const dirForStrat = strategies && sid && strategies.get(sid) ? strategies.get(sid) : trackingDirRoot;
+		for (const token of tokens) {
+			const filePath = path.join(dirForStrat, `${token}-websocket.log`);
+			const sessions = await parseTrackingSessions(filePath);
+			const map = new Map();
+			for (const s of sessions) {
+				map.set(keySession(s.startedAt, s.endedAt), s.metrics);
+			}
+			if (!index.has(sid)) index.set(sid, new Map());
+			index.get(sid).set(token, map);
 		}
-		index.set(token, map);
 	}
 	return index;
 }
@@ -124,8 +149,10 @@ function evaluate(records, earlyIndex, stage1, stage2) {
 		const f = computeFeatures(r);
 		const pass1 = passesRule(f, stage1);
 		if (!pass1) continue;
-		const map = earlyIndex.get(r.tokenAddress);
-		const m = map ? map.get(keySession(r.startedAt, r.endedAt)) : null;
+		// Resolve early metrics map by strategyId (if available) and token
+		const stratMap = earlyIndex.get(r.strategyId || null);
+		const tokenMap = stratMap ? stratMap.get(r.tokenAddress) : null;
+		const m = tokenMap ? tokenMap.get(keySession(r.startedAt, r.endedAt)) : null;
 		const pass2 = applyStage2(m, stage2);
 		if (!pass2) continue;
 		positives++;

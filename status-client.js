@@ -189,6 +189,40 @@ function formatStats(data) {
 	console.info(`📤 Vendidos total: ${formatNumberEs(data.totalTokensSold || 0, { maximumFractionDigits: 3 })}`);
 	console.info(`📈 Venta media creador: ${formatPercentEs(avgSell)}${distToThr > 0 ? ` (a ${formatNumberEs(distToThr, { maximumFractionDigits: 2 })} p. p. del umbral)` : ""}`);
 	console.info(`🎚️  Umbral de venta creador: ${formatPercentEs(threshold, 0)}`);
+
+	// Distribución por estado (si disponible)
+	if (data.states) {
+		const s = data.states;
+		console.info(`🧭 Estados: 🟢 SAFE: ${s.safe ?? 0}  ·  🟨 WATCH: ${s.watch ?? 0}  ·  🟧 RISK: ${s.risk ?? 0}  ·  🏁 EXITED: ${s.exited ?? 0}`);
+	}
+
+	// Métricas de alertas y salidas
+	if (data.alerts) {
+		const a = data.alerts;
+		const exitAvgUsd = typeof a.avgExitMarketCapUsd === "number" && isFinite(a.avgExitMarketCapUsd) ? formatCurrencyUsdEs(a.avgExitMarketCapUsd) : "N/D";
+		const exitSumUsd = typeof a.sumExitMarketCapUsd === "number" && isFinite(a.sumExitMarketCapUsd) ? formatCurrencyUsdEs(a.sumExitMarketCapUsd) : "N/D";
+		const exitSumSol =
+			typeof a.sumExitMarketCapSol === "number" && isFinite(a.sumExitMarketCapSol) ? `${formatNumberEs(a.sumExitMarketCapSol, { maximumFractionDigits: 6 })} SOL` : "N/D";
+		console.info(
+			`🚨 Alertas: disparadas=${a.alertedTokens ?? 0} · salidas=${a.fullyExitedTokens ?? 0} · MC salida media=${exitAvgUsd} · MC salida total=${exitSumUsd} (${exitSumSol})`
+		);
+	}
+
+	// Tracking activo por estrategia
+	if (data.tracking) {
+		const t = data.tracking;
+		console.info(`🧪 Tracking activo: tokens=${t.totalActiveTokens ?? 0} · sesiones=${t.totalActiveSessions ?? 0}`);
+		if (t.byStrategy && typeof t.byStrategy === "object") {
+			const entries = Object.entries(t.byStrategy).sort((a, b) => a[0].localeCompare(b[0]));
+			for (const [sid, v] of entries) {
+				const avgMax = typeof v.avgMaxPct === "number" && isFinite(v.avgMaxPct) ? formatPercentEs(v.avgMaxPct) : "N/D";
+				const avgMin = typeof v.avgMinPct === "number" && isFinite(v.avgMinPct) ? formatPercentEs(v.avgMinPct) : "N/D";
+				console.info(
+					`   • ${sid}: sesiones=${v.sessions ?? 0}, entradas=${v.entriesRecorded ?? 0}, sin-trades=${v.noPostTrades ?? 0}, trades=${v.tradeCountTotal ?? 0}, avgMax=${avgMax}, avgMin=${avgMin}`
+				);
+			}
+		}
+	}
 	console.info("═════════════════════════════════════════════\n");
 }
 

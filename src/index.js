@@ -246,6 +246,9 @@ class PumpPortalAnalyzer {
 									totalTokensOwned: quickStats.totalTokensOwned,
 									totalTokensSold: quickStats.totalTokensSold,
 									averageSellPercentage: quickStats.averageSellPercentage,
+									states: quickStats.states,
+									alerts: quickStats.alerts,
+									tracking: quickStats.tracking,
 								},
 								null,
 								2

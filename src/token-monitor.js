@@ -79,6 +79,85 @@ class TokenMonitor {
 			averageSellPercentage = totalPercentage / tokens.length;
 		}
 
+		// Distribución por estados de venta
+		const thr = config.thresholds.creatorSellThreshold;
+		let stateSafe = 0; // 0%
+		let stateExit = 0; // 100%
+		let stateRisk = 0; // >= thr y < 100
+		let stateWatch = 0; // > 0 y < thr
+		tokens.forEach((t) => {
+			const tr = this.tokenSellTracking.get(t.address);
+			if (!tr) return;
+			const pct = tr.initialTokensOwned > 0 ? (tr.tokensSold / tr.initialTokensOwned) * 100 : 0;
+			if (pct === 0) stateSafe++;
+			else if (pct === 100) stateExit++;
+			else if (pct >= thr) stateRisk++;
+			else stateWatch++;
+		});
+
+		// Alertas y salidas
+		let tokensAlerted = 0;
+		let tokensExited = 0;
+		let sumExitMcUsd = 0;
+		let sumExitMcSol = 0;
+		for (const [, tr] of this.tokenSellTracking) {
+			if (tr.thresholdAlerted) tokensAlerted++;
+			if (tr.exitLogged) {
+				tokensExited++;
+				if (typeof tr.exitMarketCapUsd === "number" && isFinite(tr.exitMarketCapUsd)) sumExitMcUsd += tr.exitMarketCapUsd;
+				if (typeof tr.exitMarketCapSol === "number" && isFinite(tr.exitMarketCapSol)) sumExitMcSol += tr.exitMarketCapSol;
+			}
+		}
+
+		// Tracking activo por estrategia
+		const trackingByStrategy = new Map();
+		let totalActiveTrackingTokens = 0;
+		let totalActiveTrackingSessions = 0;
+		for (const [, byToken] of this.activeTracking) {
+			if (byToken && byToken.size > 0) totalActiveTrackingTokens++;
+			for (const [, session] of byToken) {
+				totalActiveTrackingSessions++;
+				const sid = session.strategyId || "default";
+				const acc = trackingByStrategy.get(sid) || {
+					sessions: 0,
+					entriesRecorded: 0,
+					noPostTrades: 0,
+					tradeCountTotal: 0,
+					maxPctSum: 0,
+					maxPctCount: 0,
+					minPctSum: 0,
+					minPctCount: 0,
+				};
+				acc.sessions += 1;
+				if (session.entryRecorded) {
+					acc.entriesRecorded += 1;
+					if (typeof session.maxPct === "number" && isFinite(session.maxPct)) {
+						acc.maxPctSum += session.maxPct;
+						acc.maxPctCount += 1;
+					}
+					if (typeof session.minPct === "number" && isFinite(session.minPct)) {
+						acc.minPctSum += session.minPct;
+						acc.minPctCount += 1;
+					}
+				}
+				if (session.tradeCount === 0) acc.noPostTrades += 1;
+				acc.tradeCountTotal += session.tradeCount || 0;
+				trackingByStrategy.set(sid, acc);
+			}
+		}
+
+		const trackingSummary = {};
+		for (const [sid, acc] of trackingByStrategy.entries()) {
+			trackingSummary[sid] = {
+				sessions: acc.sessions,
+				entriesRecorded: acc.entriesRecorded,
+				noPostTrades: acc.noPostTrades,
+				tradeCountTotal: acc.tradeCountTotal,
+				avgMaxPct: acc.maxPctCount > 0 ? acc.maxPctSum / acc.maxPctCount : null,
+				avgMinPct: acc.minPctCount > 0 ? acc.minPctSum / acc.minPctCount : null,
+			};
+		}
+
 		return {
 			totalTokens: tokens.length,
 			totalCreators: creators.length,
@@ -86,6 +165,26 @@ class TokenMonitor {
 			totalTokensOwned,
 			totalTokensSold,
 			averageSellPercentage,
+			states: {
+				safe: stateSafe,
+				watch: stateWatch,
+				risk: stateRisk,
+				exited: stateExit,
+			},
+			alerts: {
+				threshold: thr,
+				alertedTokens: tokensAlerted,
+				fullyExitedTokens: tokensExited,
+				sumExitMarketCapUsd: sumExitMcUsd,
+				sumExitMarketCapSol: sumExitMcSol,
+				avgExitMarketCapUsd: tokensExited > 0 ? sumExitMcUsd / tokensExited : null,
+				avgExitMarketCapSol: tokensExited > 0 ? sumExitMcSol / tokensExited : null,
+			},
+			tracking: {
+				totalActiveTokens: totalActiveTrackingTokens,
+				totalActiveSessions: totalActiveTrackingSessions,
+				byStrategy: trackingSummary,
+			},
 		};
 	}
 
