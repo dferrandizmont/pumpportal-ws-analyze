@@ -215,6 +215,11 @@ async function main() {
 	const { baseline, results } = evaluateRules(feats);
 	const top = results.slice(0, 100);
 
+	// Select best rules for different objectives
+	const bestF1 = results[0] || null;
+	const bestPrecision = results.slice().sort((a, b) => b.precision - a.precision || b.recall - a.recall)[0] || null;
+	const bestRecall = results.slice().sort((a, b) => b.recall - a.recall || b.precision - a.precision)[0] || null;
+
 	// Guardar búsqueda completa y top
 	writeCsv(
 		path.join(outputDir, "threshold_search.csv"),
@@ -276,7 +281,7 @@ async function main() {
 		]
 	);
 
-	const recommended = top[0] || null;
+	const recommended = bestF1 || null;
 	if (recommended) {
 		fs.writeFileSync(path.join(outputDir, "recommended_rule.json"), JSON.stringify(recommended, null, 2));
 	}
@@ -289,6 +294,8 @@ async function main() {
 		results,
 		top: top.slice(0, 25),
 		recommended,
+		bestPrecision,
+		bestRecall,
 		outputDir,
 	});
 	fs.writeFileSync(path.join(outputDir, "report.html"), html, "utf8");
@@ -330,7 +337,7 @@ function fmtPct(x, digits = 2) {
 	}).format(val)}%`;
 }
 
-function buildHtmlReport({ feats, summaryRows, baseline, top, recommended }) {
+function buildHtmlReport({ feats, summaryRows, baseline, top, recommended, bestPrecision, bestRecall, _outputDir }) {
 	const counts = {
 		total: feats.length,
 		good: feats.filter((f) => f.outcome === "good").length,
@@ -339,7 +346,7 @@ function buildHtmlReport({ feats, summaryRows, baseline, top, recommended }) {
 	};
 
 	const css = `
-  /* Nord Theme (Light/Dark) Palette with theme switch */
+  /* Light theme (Nord-like) + Dark theme (Catppuccin Mocha) with theme switch */
   :root {
     /* Core */
     --polar-night-0: #2e3440;
@@ -374,25 +381,39 @@ function buildHtmlReport({ feats, summaryRows, baseline, top, recommended }) {
     --accent-2: var(--frost-1);
     --accent-3: var(--aurora-yellow);
     --shadow: rgba(0,0,0,0.06);
+    /* Table and chip colors (light) */
+    --table-head-bg: var(--snow-storm-1);
+    --table-head-text: var(--polar-night-3);
+    --table-row-odd-bg: #ffffff;
+    --table-row-even-bg: var(--snow-storm-0);
+    --table-row-hover-bg: var(--snow-storm-1);
+    --badge-bg: var(--snow-storm-1);
   }
 
   :root[data-theme='dark'] {
-    /* Invert to Nord dark */
-    --bg: var(--polar-night-0);
-    --panel: var(--polar-night-1);
-    --panel-alt: var(--polar-night-2);
-    --border: #2f3642;
-    --text: var(--snow-storm-0);
-    --muted: var(--snow-storm-2);
-    --heading: var(--snow-storm-0);
-    --code-bg: #2a3140;
-    --good: var(--aurora-green);
-    --bad: var(--aurora-red);
-    --neutral: var(--frost-1);
-    --accent: var(--frost-1);
-    --accent-2: var(--frost-2);
-    --accent-3: var(--aurora-yellow);
-    --shadow: rgba(0,0,0,0.35);
+    /* Catppuccin Mocha */
+    --bg: #1e1e2e;          /* base */
+    --panel: #181825;       /* mantle */
+    --panel-alt: #11111b;   /* crust */
+    --border: #313244;      /* surface0 */
+    --text: #cdd6f4;        /* text */
+    --muted: #a6adc8;       /* subtext0 */
+    --heading: #cdd6f4;     /* text */
+    --code-bg: #313244;     /* surface0 */
+    --good: #a6e3a1;        /* green */
+    --bad: #f38ba8;         /* red */
+    --neutral: #b4befe;     /* lavender */
+    --accent: #89b4fa;      /* blue */
+    --accent-2: #cba6f7;    /* mauve */
+    --accent-3: #fab387;    /* peach */
+    --shadow: rgba(0,0,0,0.5);
+    /* Table and chip colors (dark) */
+    --table-head-bg: #313244;     /* surface0 */
+    --table-head-text: #cdd6f4;   /* text */
+    --table-row-odd-bg: #1e1e2e;  /* base */
+    --table-row-even-bg: #181825; /* mantle */
+    --table-row-hover-bg: #313244;/* surface0 */
+    --badge-bg: #313244;          /* surface0 */
   }
 
   * { box-sizing: border-box; }
@@ -418,11 +439,13 @@ function buildHtmlReport({ feats, summaryRows, baseline, top, recommended }) {
   .toolbar { display: flex; gap: 12px; align-items: center; }
   .theme-toggle { border: 1px solid var(--border); border-radius: 999px; padding: 6px 10px; background: var(--panel); color: var(--text); cursor: pointer; box-shadow: 0 2px 10px var(--shadow); }
   .badge { font-size: 12px; border: 1px solid var(--border); padding: 6px 10px; border-radius: 999px; background: var(--panel); color: var(--text); box-shadow: 0 2px 10px var(--shadow); }
-  .badge.good { border-color: var(--good); background: var(--snow-storm-1); color: var(--good); }
-  .badge.bad { border-color: var(--bad); background: var(--snow-storm-1); color: var(--bad); }
-  .badge.neutral { border-color: var(--neutral); background: var(--snow-storm-1); color: var(--neutral); }
+  .badge.good { border-color: var(--good); background: var(--badge-bg); color: var(--good); }
+  .badge.bad { border-color: var(--bad); background: var(--badge-bg); color: var(--bad); }
+  .badge.neutral { border-color: var(--neutral); background: var(--badge-bg); color: var(--neutral); }
   .cond-badges { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
-  .cond { font-size: 12px; border: 1px dashed var(--border); padding: 8px 12px; border-radius: 10px; background: var(--snow-storm-1); color: var(--text); box-shadow: 0 1px 6px var(--shadow); }
+  .cond { font-size: 12px; border: 1px dashed var(--border); padding: 8px 12px; border-radius: 10px; background: var(--badge-bg); color: var(--text); box-shadow: 0 1px 6px var(--shadow); }
+  .copy-btn { margin-top: 6px; border: 1px solid var(--border); background: var(--panel); color: var(--text); padding: 6px 10px; border-radius: 8px; cursor: pointer; }
+  .copy-btn:hover { background: var(--badge-bg); }
   .panel { border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: var(--panel-alt); box-shadow: 0 6px 18px var(--shadow); }
   a { color: var(--accent); text-decoration: none; }
   a:hover { text-decoration: underline; }
@@ -430,10 +453,10 @@ function buildHtmlReport({ feats, summaryRows, baseline, top, recommended }) {
   .table-wrap { width: 100%; overflow-x: auto; }
   table { border-collapse: separate; border-spacing: 0; width: 100%; margin: 10px 0 20px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; box-shadow: 0 6px 18px var(--shadow); }
   th, td { padding: 10px 12px; text-align: right; }
-  thead th { background: var(--snow-storm-1); color: var(--polar-night-3); position: sticky; top: 0; z-index: 1; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
-  tbody tr:nth-child(odd) { background: #ffffff; }
-  tbody tr:nth-child(even) { background: var(--snow-storm-0); }
-  tbody tr:hover { background: var(--snow-storm-1); }
+  thead th { background: var(--table-head-bg); color: var(--table-head-text); position: sticky; top: 0; z-index: 1; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+  tbody tr:nth-child(odd) { background: var(--table-row-odd-bg); }
+  tbody tr:nth-child(even) { background: var(--table-row-even-bg); }
+  tbody tr:hover { background: var(--table-row-hover-bg); }
   td.label, th.label { text-align: left; }
   .good { color: var(--good); }
   .bad { color: var(--bad); }
@@ -536,28 +559,46 @@ function buildHtmlReport({ feats, summaryRows, baseline, top, recommended }) {
 		return `<div class="table-wrap"><table class="sortable">${header}${body}</table></div>`;
 	})();
 
-	const rec = recommended;
-	const recBlock = rec
-		? (() => {
-				const conds = [
-					`buyRatio ≥ ${fmtNum(rec.minBuyRatio, 2)}`,
-					`preBuys ≥ ${fmtNum(rec.minBuys, 0)}`,
-					`preTotalTrades ≥ ${fmtNum(rec.minTotalTrades, 0)}`,
-					`preUniqueTraders ≥ ${fmtNum(rec.minUniqueTraders, 0)}`,
-					`netBuys ≥ ${fmtNum(rec.minNetBuys, 0)}`,
-					`${fmtNum(rec.minMcUsd, 0)} ≤ entryMarketCapUsd ≤ ${rec.maxMcUsd === Infinity ? "∞" : fmtNum(rec.maxMcUsd, 0)}`,
-				];
-				if (rec.minUniquePerTrade && rec.minUniquePerTrade > 0) conds.push(`uniquePerTrade ≥ ${fmtNum(rec.minUniquePerTrade, 2)}`);
-				if (rec.minBuysPerUnique && rec.minBuysPerUnique > 0) conds.push(`buysPerUnique ≥ ${fmtNum(rec.minBuysPerUnique, 2)}`);
-				if (rec.minDeltaBuys && rec.minDeltaBuys > 0) conds.push(`Δbuys ≥ ${fmtNum(rec.minDeltaBuys, 0)}`);
-				if (rec.maxVolatilityRatio !== undefined && rec.maxVolatilityRatio !== Infinity) conds.push(`mcVolRatio ≤ ${fmtNum(rec.maxVolatilityRatio, 2)}`);
-				if (rec.maxAgeAtTriggerSec !== undefined && rec.maxAgeAtTriggerSec !== Infinity) conds.push(`ageAtTriggerSec ≤ ${fmtNum(rec.maxAgeAtTriggerSec, 0)}`);
-				const condBadges = conds.map((c) => `<span class="cond">${htmlesc(c)}</span>`).join("\n");
-				return `
+	function renderRuleCard(rule, title) {
+		if (!rule) return '<div class="muted">No disponible</div>';
+		const conds = [
+			`buyRatio ≥ ${fmtNum(rule.minBuyRatio, 2)}`,
+			`preBuys ≥ ${fmtNum(rule.minBuys, 0)}`,
+			`preTotalTrades ≥ ${fmtNum(rule.minTotalTrades, 0)}`,
+			`preUniqueTraders ≥ ${fmtNum(rule.minUniqueTraders, 0)}`,
+			`netBuys ≥ ${fmtNum(rule.minNetBuys, 0)}`,
+			`${fmtNum(rule.minMcUsd, 0)} ≤ entryMarketCapUsd ≤ ${rule.maxMcUsd === Infinity ? "∞" : fmtNum(rule.maxMcUsd, 0)}`,
+		];
+		if (rule.minUniquePerTrade && rule.minUniquePerTrade > 0) conds.push(`uniquePerTrade ≥ ${fmtNum(rule.minUniquePerTrade, 2)}`);
+		if (rule.minBuysPerUnique && rule.minBuysPerUnique > 0) conds.push(`buysPerUnique ≥ ${fmtNum(rule.minBuysPerUnique, 2)}`);
+		if (rule.minDeltaBuys && rule.minDeltaBuys > 0) conds.push(`Δbuys ≥ ${fmtNum(rule.minDeltaBuys, 0)}`);
+		if (rule.maxVolatilityRatio !== undefined && rule.maxVolatilityRatio !== Infinity) conds.push(`mcVolRatio ≤ ${fmtNum(rule.maxVolatilityRatio, 2)}`);
+		if (rule.maxAgeAtTriggerSec !== undefined && rule.maxAgeAtTriggerSec !== Infinity) conds.push(`ageAtTriggerSec ≤ ${fmtNum(rule.maxAgeAtTriggerSec, 0)}`);
+		const condBadges = conds.map((c) => `<span class="cond">${htmlesc(c)}</span>`).join("\n");
+
+		const env = [
+			`TRACK_FILTERS_ENABLED=true`,
+			`TRACK_ALL_MINTS=false`,
+			`TRACK_MIN_BUYS=${envNumInt(rule.minBuys)}`,
+			`TRACK_MIN_TOTAL_TRADES=${envNumInt(rule.minTotalTrades)}`,
+			`TRACK_MIN_UNIQUE_TRADERS=${envNumInt(rule.minUniqueTraders)}`,
+			`TRACK_MIN_BUY_RATIO=${envNumDec(rule.minBuyRatio, 2)}`,
+			`TRACK_MIN_NET_BUYS=${envNumInt(rule.minNetBuys)}`,
+			`TRACK_MIN_MC_USD=${envNumInt(rule.minMcUsd)}`,
+			`TRACK_MAX_MC_USD=${rule.maxMcUsd === Infinity ? "" : envNumInt(rule.maxMcUsd)}`,
+			`TRACK_MIN_UNIQUE_PER_TRADE=${rule.minUniquePerTrade ? envNumDec(rule.minUniquePerTrade, 2) : 0}`,
+			`TRACK_MIN_BUYS_PER_UNIQUE=${rule.minBuysPerUnique ? envNumDec(rule.minBuysPerUnique, 2) : 0}`,
+			`TRACK_MAX_AGE_AT_TRIGGER_SEC=${rule.maxAgeAtTriggerSec === Infinity ? "" : envNumInt(rule.maxAgeAtTriggerSec)}`,
+			`TRACK_MAX_MC_VOLATILITY_RATIO=${rule.maxVolatilityRatio === Infinity ? "" : envNumDec(rule.maxVolatilityRatio, 2)}`,
+		].join("\n");
+
+		const codeId = `env-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+		const isRecommended = /recomendada|recomendada|máx f1/i.test(title);
+		return `
           <div class="card">
-            <h3>Regla recomendada (máx F1)</h3>
+            <h3>${htmlesc(title)}${isRecommended ? ' <span class="badge rec">Recomendado</span>' : ""}</h3>
             <div class="value small metrics">
-              precision ${fmtPct(rec.precision)} · recall ${fmtPct(rec.recall)} · F1 ${fmtPct(rec.f1)} · coverage ${fmtPct(rec.coverage)} · lift ${fmtNum(rec.lift, 2)}
+              precision ${fmtPct(rule.precision)} · recall ${fmtPct(rule.recall)} · F1 ${fmtPct(rule.f1)} · coverage ${fmtPct(rule.coverage)} · lift ${fmtNum(rule.lift, 2)}
             </div>
             <div class="small conditions">
               <div>Condiciones:</div>
@@ -565,14 +606,16 @@ function buildHtmlReport({ feats, summaryRows, baseline, top, recommended }) {
             </div>
             <div class="small" style="margin-top:10px;">
               <div>Sugerencia .env (copiar/pegar, con decimales en punto):</div>
-              <code style="display:block; white-space:pre; margin-top:6px;">
-TRACK_FILTERS_ENABLED=true\nTRACK_MIN_BUYS=${envNumInt(rec.minBuys)}\nTRACK_MIN_TOTAL_TRADES=${envNumInt(rec.minTotalTrades)}\nTRACK_MIN_UNIQUE_TRADERS=${envNumInt(rec.minUniqueTraders)}\nTRACK_MIN_BUY_RATIO=${envNumDec(rec.minBuyRatio, 2)}\nTRACK_MIN_NET_BUYS=${envNumInt(rec.minNetBuys)}\nTRACK_MIN_MC_USD=${envNumInt(rec.minMcUsd)}\nTRACK_MAX_MC_USD=${rec.maxMcUsd === Infinity ? "" : envNumInt(rec.maxMcUsd)}\nTRACK_MIN_UNIQUE_PER_TRADE=${rec.minUniquePerTrade ? envNumDec(rec.minUniquePerTrade, 2) : 0}\nTRACK_MIN_BUYS_PER_UNIQUE=${rec.minBuysPerUnique ? envNumDec(rec.minBuysPerUnique, 2) : 0}\nTRACK_MAX_AGE_AT_TRIGGER_SEC=${rec.maxAgeAtTriggerSec === Infinity ? "" : envNumInt(rec.maxAgeAtTriggerSec)}\nTRACK_MAX_MC_VOLATILITY_RATIO=${rec.maxVolatilityRatio === Infinity ? "" : envNumDec(rec.maxVolatilityRatio, 2)}
-              </code>
+              <code id="${codeId}" style="display:block; white-space:pre; margin-top:6px;">${htmlesc(env)}</code>
+              <button class="copy-btn" data-target="${codeId}">Copiar</button>
             </div>
           </div>
         `;
-			})()
-		: '<div class="muted">No se encontró una regla recomendada.</div>';
+	}
+
+	const recBlock = renderRuleCard(recommended, "Regla recomendada (máx F1)");
+	const bestPrecisionBlock = renderRuleCard(bestPrecision, "Máxima precisión");
+	const bestRecallBlock = renderRuleCard(bestRecall, "Máximo recall");
 
 	const html = `<!doctype html>
   <html lang="es">
@@ -665,8 +708,12 @@ TRACK_FILTERS_ENABLED=true\nTRACK_MIN_BUYS=${envNumInt(rec.minBuys)}\nTRACK_MIN_
       </div>
 
       <div class="section panel">
-        <h2>Regla recomendada</h2>
+        <h2>Presets de reglas</h2>
         ${recBlock}
+        <div class="spacer"></div>
+        ${bestPrecisionBlock}
+        <div class="spacer"></div>
+        ${bestRecallBlock}
       </div>
 
       <div class="section panel">
@@ -703,12 +750,48 @@ TRACK_FILTERS_ENABLED=true\nTRACK_MIN_BUYS=${envNumInt(rec.minBuys)}\nTRACK_MIN_
         });
       })();
 
+      // Copy buttons for env snippets
+      (function(){
+        document.querySelectorAll('.copy-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-target');
+            const code = document.getElementById(id);
+            if (!code) return;
+            try {
+              await navigator.clipboard.writeText(code.innerText);
+              const old = btn.textContent;
+              btn.textContent = 'Copiado!';
+              setTimeout(()=>{ btn.textContent = old; }, 1500);
+            } catch (e) {
+              console.error('Copy failed', e);
+            }
+          });
+        });
+      })();
+
+      // Copy buttons for env snippets
+      (function(){
+        document.querySelectorAll('.copy-btn').forEach(btn => {
+          btn.addEventListener('click', async () => {
+            const id = btn.getAttribute('data-target');
+            const code = document.getElementById(id);
+            if (!code) return;
+            try {
+              await navigator.clipboard.writeText(code.innerText);
+              const old = btn.textContent;
+              btn.textContent = 'Copiado!';
+              setTimeout(()=>{ btn.textContent = old; }, 1500);
+            } catch (e) { console.error('Copy failed', e); }
+          });
+        });
+      })();
+
       // Simple sort for tables with class="sortable" (supports es-ES numbers)
       (function(){
         function parseCell(text){
           const t = text.trim().replace(/%$/, '');
           // Convert es-ES format (1.234,56) -> 1234.56
-          const cleaned = t.replace(/\./g, '').replace(/,/g, '.');
+          const cleaned = t.replace(/[.]/g, '').replace(/,/g, '.');
           const n = Number(cleaned);
           return Number.isFinite(n) ? n : text.toLowerCase();
         }

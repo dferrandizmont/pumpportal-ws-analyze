@@ -812,19 +812,20 @@ class TokenMonitor {
 			// Optional pre-conditions to start tracking (from ENV)
 			let passesFilters = true;
 			const f = config.trackingFilters || { enabled: false };
-			if (f.enabled) {
-				const total = stats.total || 0;
-				const buys = stats.buys || 0;
-				const sells = stats.sells || 0;
-				const uniq = stats.traders ? stats.traders.size : 0;
-				const denom = buys + sells;
-				const buyRatio = denom > 0 ? buys / denom : 0;
-				const netBuys = buys - sells;
-				const uniquePerTrade = total > 0 ? uniq / total : 0;
-				const buysPerUnique = uniq > 0 ? buys / uniq : 0;
-				const mcUsd = typeof thresholdMcUsd === "number" ? thresholdMcUsd : 0;
-				const volRatio = stats.minMcUsd && stats.minMcUsd > 0 && stats.maxMcUsd ? stats.maxMcUsd / stats.minMcUsd : null;
+			// Precompute metrics for logging and evaluation
+			const total = stats.total || 0;
+			const buys = stats.buys || 0;
+			const sells = stats.sells || 0;
+			const uniq = stats.traders ? stats.traders.size : 0;
+			const denom = buys + sells;
+			const buyRatio = denom > 0 ? buys / denom : 0;
+			const netBuys = buys - sells;
+			const uniquePerTrade = total > 0 ? uniq / total : 0;
+			const buysPerUnique = uniq > 0 ? buys / uniq : 0;
+			const mcUsd = typeof thresholdMcUsd === "number" ? thresholdMcUsd : 0;
+			const volRatio = stats.minMcUsd && stats.minMcUsd > 0 && stats.maxMcUsd ? stats.maxMcUsd / stats.minMcUsd : null;
 
+			if (f.enabled) {
 				passesFilters =
 					buys >= (f.minBuys || 0) &&
 					total >= (f.minTotalTrades || 0) &&
@@ -837,8 +838,16 @@ class TokenMonitor {
 					buysPerUnique >= (f.minBuysPerUnique || 0) &&
 					(ageAtTriggerSec === null || ageAtTriggerSec <= (Number.isFinite(f.maxAgeAtTriggerSec) ? f.maxAgeAtTriggerSec : Infinity)) &&
 					(volRatio === null || volRatio <= (Number.isFinite(f.maxMcVolatilityRatio) ? f.maxMcVolatilityRatio : Infinity));
+			}
 
-				if (!passesFilters) {
+			// Decide whether to start tracking based on config
+			let shouldTrack = true;
+			if (f && f.trackAllMints === true) {
+				logger.tokenMonitor("TRACK_ALL_MINTS enabled: overriding filters to start tracking", { tokenAddress });
+				shouldTrack = true;
+			} else if (f && f.enabled) {
+				shouldTrack = passesFilters;
+				if (!shouldTrack) {
 					logger.tokenMonitor("Tracking filters not met; skipping tracking start", {
 						tokenAddress,
 						buys,
@@ -854,12 +863,8 @@ class TokenMonitor {
 						volatilityRatio: volRatio,
 						filters: f,
 					});
+					return;
 				}
-			}
-			// Only start tracking if filters pass or filters are disabled
-			if (f.enabled && !passesFilters) {
-				logger.tokenMonitor("Tracking not started due to filters", { tokenAddress });
-				return;
 			}
 			this.startTracking(tokenAddress, {
 				triggerAt: triggerAt.toISOString(),

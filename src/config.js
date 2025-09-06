@@ -43,6 +43,7 @@ const config = {
 	// Tracking pre-conditions (to start tracking after creator sells)
 	trackingFilters: {
 		enabled: process.env.TRACK_FILTERS_ENABLED === "true",
+		trackAllMints: process.env.TRACK_ALL_MINTS === "true",
 		minBuys: parseFloat(process.env.TRACK_MIN_BUYS ?? "0"),
 		minTotalTrades: parseFloat(process.env.TRACK_MIN_TOTAL_TRADES ?? "0"),
 		minUniqueTraders: parseFloat(process.env.TRACK_MIN_UNIQUE_TRADERS ?? "0"),

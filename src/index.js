@@ -120,6 +120,24 @@ class PumpPortalAnalyzer {
 							timestamp: new Date().toISOString(),
 							uptime: process.uptime(),
 							creatorSellThreshold: config.thresholds.creatorSellThreshold,
+							trackingFilters: (() => {
+								const tf = config.trackingFilters || {};
+								return {
+									enabled: !!tf.enabled,
+									trackAllMints: !!tf.trackAllMints,
+									minBuys: tf.minBuys,
+									minTotalTrades: tf.minTotalTrades,
+									minUniqueTraders: tf.minUniqueTraders,
+									minBuyRatio: tf.minBuyRatio,
+									minNetBuys: tf.minNetBuys,
+									minMcUsd: tf.minMcUsd,
+									maxMcUsd: Number.isFinite(tf.maxMcUsd) ? tf.maxMcUsd : null,
+									minUniquePerTrade: tf.minUniquePerTrade,
+									minBuysPerUnique: tf.minBuysPerUnique,
+									maxAgeAtTriggerSec: Number.isFinite(tf.maxAgeAtTriggerSec) ? tf.maxAgeAtTriggerSec : null,
+									maxMcVolatilityRatio: Number.isFinite(tf.maxMcVolatilityRatio) ? tf.maxMcVolatilityRatio : null,
+								};
+							})(),
 							solUsdPrice: priceService.getSolUsd(),
 							solUsdLastUpdated: priceService.getLastUpdated(),
 							tokens: tokens
@@ -166,6 +184,24 @@ class PumpPortalAnalyzer {
 									timestamp: new Date().toISOString(),
 									uptime: process.uptime(),
 									creatorSellThreshold: config.thresholds.creatorSellThreshold,
+									trackingFilters: (() => {
+										const tf = config.trackingFilters || {};
+										return {
+											enabled: !!tf.enabled,
+											trackAllMints: !!tf.trackAllMints,
+											minBuys: tf.minBuys,
+											minTotalTrades: tf.minTotalTrades,
+											minUniqueTraders: tf.minUniqueTraders,
+											minBuyRatio: tf.minBuyRatio,
+											minNetBuys: tf.minNetBuys,
+											minMcUsd: tf.minMcUsd,
+											maxMcUsd: Number.isFinite(tf.maxMcUsd) ? tf.maxMcUsd : null,
+											minUniquePerTrade: tf.minUniquePerTrade,
+											minBuysPerUnique: tf.minBuysPerUnique,
+											maxAgeAtTriggerSec: Number.isFinite(tf.maxAgeAtTriggerSec) ? tf.maxAgeAtTriggerSec : null,
+											maxMcVolatilityRatio: Number.isFinite(tf.maxMcVolatilityRatio) ? tf.maxMcVolatilityRatio : null,
+										};
+									})(),
 									solUsdPrice: priceService.getSolUsd(),
 									solUsdLastUpdated: priceService.getLastUpdated(),
 									totalTokens: quickStats.totalTokens,
