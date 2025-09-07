@@ -174,3 +174,18 @@
 07-09-2025 21:57:23.261 INFO Current price: 0.000000030760 - Current percentage: -52.08% - Max: 7.34% - Min: -52.08% - Market Cap 6232 - Trading time: 00:02:55
 07-09-2025 21:57:24.211 INFO Current price: 0.000000030741 - Current percentage: -52.11% - Max: 7.34% - Min: -52.11% - Market Cap 6228 - Trading time: 00:02:56
 07-09-2025 21:57:26.416 INFO Current price: 0.000000030704 - Current percentage: -52.20% - Max: 7.34% - Min: -52.20% - Market Cap 6217 - Trading time: 00:02:59
+07-09-2025 21:57:35.589 INFO Current price: 0.000000030632 - Current percentage: -52.34% - Max: 7.34% - Min: -52.34% - Market Cap 6199 - Trading time: 00:03:08
+07-09-2025 21:57:56.450 INFO Current price: 0.000000030554 - Current percentage: -52.44% - Max: 7.34% - Min: -52.44% - Market Cap 6186 - Trading time: 00:03:29
+07-09-2025 21:58:27.355 INFO Current price: 0.000000030162 - Current percentage: -53.50% - Max: 7.34% - Min: -53.50% - Market Cap 6048 - Trading time: 00:03:59
+07-09-2025 21:58:29.439 INFO Current price: 0.000000029162 - Current percentage: -55.49% - Max: 7.34% - Min: -55.49% - Market Cap 5789 - Trading time: 00:04:02
+07-09-2025 21:58:38.341 INFO Current price: 0.000000028389 - Current percentage: -55.93% - Max: 7.34% - Min: -55.93% - Market Cap 5732 - Trading time: 00:04:10
+07-09-2025 22:05:33.943 INFO Current price: 0.000000028194 - Current percentage: -56.10% - Max: 7.34% - Min: -56.10% - Market Cap 5710 - Trading time: 00:11:06
+07-09-2025 22:06:37.264 INFO Current price: 0.000000028089 - Current percentage: -56.26% - Max: 7.34% - Min: -56.26% - Market Cap 5689 - Trading time: 00:12:09
+07-09-2025 22:10:05.538 INFO Current price: 0.000000028034 - Current percentage: -56.24% - Max: 7.34% - Min: -56.26% - Market Cap 5691 - Trading time: 00:15:38
+
+
+
+
+
+
+07-09-2025 22:14:27.380 INFO {"type":"summary","reason":"max_window","startedAt":"2025-09-07T19:54:27.357Z","endedAt":"2025-09-07T20:14:27.380Z","durationSec":1200,"entryPrice":6.743738921430066e-8,"entryMarketCapSol":64.17322077548259,"entryMarketCapUsd":13005.986654567056,"minPct":-56.255662651373775,"maxPct":7.341882636449651,"buyCount":95,"sellCount":103,"tradeCount":198,"entryRecorded":true,"noPostThresholdTrades":false,"triggerAt":"2025-09-07T19:54:27.356Z","ageAtTriggerSec":22,"preTotalTrades":101,"preBuys":58,"preSells":43,"preUniqueTraders":50,"preEntryTotalTrades":117,"preEntryBuys":63,"preEntrySells":54,"preEntryUniqueTraders":54,"preEntryMinMcUsd":6478.937934923899,"preEntryMaxMcUsd":15221.826046127067,"thresholdMcSol":64.17322077548259,"thresholdMcUsd":13005.986654567056,"thresholdPrice":6.743738921430066e-8}
