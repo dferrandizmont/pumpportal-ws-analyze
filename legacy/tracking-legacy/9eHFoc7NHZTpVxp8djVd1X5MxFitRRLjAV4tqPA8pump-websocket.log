@@ -1,0 +1,10 @@
+06-09-2025 13:43:43.486 INFO Entry price: 0.000000030763762504 - Entry market cap: 5652 - Buys 3 - Sells 2 - Ratio: 1:0.67 - Min MarketCap: 6840 - Max MarketCap: 6872
+06-09-2025 13:43:43.486 INFO Current price: 0.000000030764 - Current percentage: 0.00% - Max: 0.00% - Min: 0.00% - Market Cap 5652 - Trading time: 00:00:02
+06-09-2025 13:43:46.012 INFO Current price: 0.000000027963 - Current percentage: -0.03% - Max: 0.00% - Min: -0.03% - Market Cap 5651 - Trading time: 00:00:04
+
+
+
+
+
+
+06-09-2025 13:53:46.013 INFO {"type":"summary","reason":"inactivity","startedAt":"2025-09-06T11:43:41.486Z","endedAt":"2025-09-06T11:53:46.013Z","durationSec":604,"entryPrice":3.076376250419371e-8,"entryMarketCapSol":27.966672775994265,"entryMarketCapUsd":5652.344234756201,"minPct":-0.027458753570439184,"maxPct":0,"buyCount":0,"sellCount":1,"tradeCount":1,"entryRecorded":true,"noPostThresholdTrades":false,"triggerAt":"2025-09-06T11:43:41.486Z","ageAtTriggerSec":24,"preTotalTrades":5,"preBuys":3,"preSells":2,"preUniqueTraders":3,"preEntryTotalTrades":5,"preEntryBuys":3,"preEntrySells":2,"preEntryUniqueTraders":3,"preEntryMinMcUsd":6839.524366264865,"preEntryMaxMcUsd":6872.485402237317,"thresholdMcSol":27.966672775994265,"thresholdMcUsd":5652.344234756201,"thresholdPrice":3.076376250419371e-8}

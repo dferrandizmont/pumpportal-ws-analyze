@@ -1,0 +1,15 @@
+06-09-2025 18:51:18.216 INFO Entry price: 0.000000029655584255 - Entry market cap: 5712 - Buys 5 - Sells 3 - Ratio: 1:0.60 - Min MarketCap: 6195 - Max MarketCap: 7131
+06-09-2025 18:51:18.216 INFO Current price: 0.000000029656 - Current percentage: 0.00% - Max: 0.00% - Min: 0.00% - Market Cap 5712 - Trading time: 00:00:02
+06-09-2025 18:51:18.472 INFO Current price: 0.000000028327 - Current percentage: 0.19% - Max: 0.19% - Min: 0.00% - Market Cap 5723 - Trading time: 00:00:02
+06-09-2025 18:51:24.034 INFO Current price: 0.000000028327 - Current percentage: 0.00% - Max: 0.19% - Min: 0.00% - Market Cap 5712 - Trading time: 00:00:07
+06-09-2025 18:51:26.512 INFO Current price: 0.000000028485 - Current percentage: 1.31% - Max: 1.31% - Min: 0.00% - Market Cap 5787 - Trading time: 00:00:10
+06-09-2025 18:51:47.998 INFO Current price: 0.000000028667 - Current percentage: 1.29% - Max: 1.31% - Min: 0.00% - Market Cap 5785 - Trading time: 00:00:31
+06-09-2025 18:51:54.962 INFO Current price: 0.000000028493 - Current percentage: 0.09% - Max: 1.31% - Min: 0.00% - Market Cap 5717 - Trading time: 00:00:38
+06-09-2025 18:53:15.799 INFO Current price: 0.000000028141 - Current percentage: -1.20% - Max: 1.31% - Min: -1.20% - Market Cap 5643 - Trading time: 00:01:59
+
+
+
+
+
+
+06-09-2025 19:03:15.799 INFO {"type":"summary","reason":"inactivity","startedAt":"2025-09-06T16:51:16.215Z","endedAt":"2025-09-06T17:03:15.799Z","durationSec":719,"entryPrice":2.9655584255358365e-8,"entryMarketCapSol":28.299421485202775,"entryMarketCapUsd":5711.6722383584765,"minPct":-1.2029504177176307,"maxPct":1.3132110304288809,"buyCount":2,"sellCount":4,"tradeCount":6,"entryRecorded":true,"noPostThresholdTrades":false,"triggerAt":"2025-09-06T16:51:16.215Z","ageAtTriggerSec":4,"preTotalTrades":8,"preBuys":5,"preSells":3,"preUniqueTraders":5,"preEntryTotalTrades":8,"preEntryBuys":5,"preEntrySells":3,"preEntryUniqueTraders":5,"preEntryMinMcUsd":6194.89664866537,"preEntryMaxMcUsd":7130.853271797299,"thresholdMcSol":28.299421485202775,"thresholdMcUsd":5711.6722383584765,"thresholdPrice":2.9655584255358365e-8}
