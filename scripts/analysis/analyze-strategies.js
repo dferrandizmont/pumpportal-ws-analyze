@@ -262,7 +262,9 @@ function buildHtml({ baseline, _totalMarked, _totalGoodMarked, rows, strategiesC
 					if (trackingDir && fs.existsSync(trackingDir)) {
 						logsCount = fs.readdirSync(trackingDir).filter((f) => f.endsWith("-websocket.log")).length;
 					}
-				} catch {}
+				} catch (_e) {
+					void 0; // ignore fs errors
+				}
 				const chips = [
 					f.minBuyRatio != null ? `buyRatio ≥ ${fmtNum(f.minBuyRatio, 2)}` : null,
 					f.minBuys != null ? `preBuys ≥ ${fmtNum(f.minBuys, 0)}` : null,

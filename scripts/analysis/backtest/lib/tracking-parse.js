@@ -4,6 +4,7 @@ import readline from "readline";
 // Parse a per-token tracking log file and extract sessions with early-window metrics
 // A session is assumed to start when the first 'Current price:' line appears after a previous summary
 // and ends at the JSON summary line (INFO {"type":"summary", ...}).
+// IMPORTANT: If there is no summary (e.g., truncated file), the open session is DISCARDED.
 
 const CURRENT_REGEX = /Current price:\s*([^\s]+)\s*-\s*Current percentage:\s*([-0-9.]+)%.*?Trading time:\s*(\d+):(\d+):(\d+)/;
 const SUMMARY_JSON_START = /\{\s*"type"\s*:\s*"summary"/;
@@ -76,11 +77,15 @@ export async function parseTrackingSessions(filePath) {
 					});
 					cur = null; // reset after summary
 				} catch {
-					// ignore parse errors
+					// If summary JSON appears but fails to parse, discard the open session
+					// to avoid leaking its points into the next session.
+					cur = null;
 				}
 			}
 		}
 	}
 
+	// At EOF: do NOT push any open session without a parsed summary. Discard it.
+	cur = null;
 	return sessions;
 }

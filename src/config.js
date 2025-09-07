@@ -93,30 +93,25 @@ const config = {
 		// Interpret envs as seconds/minutes for convenience; keep ms internally
 		// Env names use _SEC and _MIN; fallback to old *_MS for backward-compat
 		entryDelayMs: (() => {
-			const raw = process.env.TRACKING_ENTRY_DELAY_SEC ?? process.env.TRACKING_ENTRY_DELAY_MS;
+			const raw = process.env.TRACKING_ENTRY_DELAY_SEC;
 			const defSec = 2; // default 2 seconds
 			if (!raw) return defSec * 1000;
 			const n = parseFloat(raw);
-			if (!Number.isFinite(n)) return defSec * 1000;
-			// if someone still sets ms (legacy), accept it
-			return n > 10000 ? n : n * 1000;
+			return Number.isFinite(n) ? n * 1000 : defSec * 1000;
 		})(),
 		inactivityMs: (() => {
-			const raw = process.env.TRACKING_INACTIVITY_MIN ?? process.env.TRACKING_INACTIVITY_MS;
+			const raw = process.env.TRACKING_INACTIVITY_MIN;
 			const defMin = 10; // default 10 minutes
 			if (!raw) return defMin * 60 * 1000;
 			const n = parseFloat(raw);
-			if (!Number.isFinite(n)) return defMin * 60 * 1000;
-			// if looks like ms (legacy), accept it
-			return n > 600000 ? n : n * 60 * 1000;
+			return Number.isFinite(n) ? n * 60 * 1000 : defMin * 60 * 1000;
 		})(),
 		maxWindowMs: (() => {
-			const raw = process.env.TRACKING_MAX_WINDOW_MIN ?? process.env.TRACKING_MAX_WINDOW_MS;
+			const raw = process.env.TRACKING_MAX_WINDOW_MIN;
 			const defMin = 20; // default 20 minutes
 			if (!raw) return defMin * 60 * 1000;
 			const n = parseFloat(raw);
-			if (!Number.isFinite(n)) return defMin * 60 * 1000;
-			return n > 600000 ? n : n * 60 * 1000;
+			return Number.isFinite(n) ? n * 60 * 1000 : defMin * 60 * 1000;
 		})(),
 		logDir: process.env.TRACKING_LOG_DIR || "tracking",
 		// optional TP for future use

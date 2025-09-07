@@ -127,6 +127,8 @@ npm run analyze:backtest
     - `BT_OBJECTIVE=f1 | precision | recall | recall_min_precision`
     - `BT_MIN_PRECISION=0.25` (para recall_min_precision)
     - `BT_MIN_COVERAGE=0.05` (para precision con cobertura mínima)
+    - `BT_WORKERS=0` (auto: CPUs−1) o un número fijo
+    - `BT_TOPK=25` tamaño del Top‑K para JSON/HTML
 
 - Salidas (carpeta `backtest-output/`):
     - `backtest_results.csv`: todas las combinaciones Stage1+Stage2.
@@ -162,9 +164,61 @@ TRACK_STAGE2_MIN_MAXPCT=...
 
 - Si quieres, podemos implementarla en el runtime: tras arrancar tracking, esperar 30–60s y confirmar la señal (minTrades y/o minMaxPct) antes de alertar/cerrar. Reduce falsos positivos.
 
+#### 3.5 Paralelización (multi‑worker)
+
+- El backtest distribuye el grid de reglas (Etapa 1 × Etapa 2) entre varios `worker_threads`.
+- Mientras recibe batches de resultados de cada worker, escribe `backtest_results.csv` en streaming y mantiene solo el Top‑K por objetivo en memoria.
+- Configura `BT_WORKERS` (0 = auto, CPUs−1) y `BT_TOPK` (por defecto 25). Escala casi lineal hasta saturar CPU/IO.
+
+Notas de rendimiento:
+
+- El dataset se carga una sola vez y se indexan las métricas tempranas por sesión para Etapa 2.
+- Recomendado dejar `BT_WORKERS=0` salvo que quieras limitar manualmente.
+
 ---
 
-### 4) FAQ (rápido)
+### 4) Wallet backtest (simulación de cartera)
+
+Simula una cartera secuencial sobre sesiones reales de una estrategia concreta. Procesa cada sesión en orden temporal y aplica TP/SL/Timeout con fees/slippage.
+
+Comando:
+
+```
+npm run analyze:wallet
+```
+
+Variables (en `.env`):
+
+- `BACKTEST_STRATEGY_ID` estrategia (id en `strategies.json`, p. ej. `f1Balanced`).
+- `BACKTEST_INITIAL_SOL` saldo inicial (ej. `1.5`).
+- Asignación por trade: usa una de las dos:
+    - `BACKTEST_ALLOC_SOL` SOL fijos por operación, o
+    - `BACKTEST_ALLOC_PCT` fracción de cartera (por defecto `1.0` = 100%).
+- Reglas de salida: `BACKTEST_TP_PCT`, `BACKTEST_SL_PCT`, `BACKTEST_TIMEOUT_SEC`.
+    - `BACKTEST_SL_PCT` admite valores negativos o positivos (se normaliza a absoluto).
+- Costes: `BACKTEST_FEE_PCT`, `BACKTEST_SLIPPAGE_PCT` (por lado; aplica ida+vuelta).
+- Rendimiento: `BACKTEST_LIMIT` (muestra) y `BACKTEST_PARSE_CONCURRENCY` (paraleliza el parseo de logs).
+
+Entradas y orden:
+
+- Lee ficheros `tracking/<estrategia>/*-websocket.log` (o `tracking.logDir` de la estrategia).
+- Parsea sesiones en paralelo y las ordena por `startedAt` ascendente.
+- Importante: sesiones sin summary se descartan (no se simulan).
+
+Salidas:
+
+- `backtest-output/wallet/trades.csv` (cada operación).
+- `backtest-output/wallet/summary.json` (KPIs: final, winrate, max drawdown, etc.).
+- `backtest-output/wallet/report.html` (resumen y enlaces a archivos).
+
+Modelo:
+
+- Secuencial: la cartera se actualiza tras cada operación; si no hay fondos suficientes, se detiene (bancarrota efectiva).
+- Eventos de salida: TP, SL, Timeout; si no se alcanza ninguno y termina la sesión, se usa el último punto.
+
+---
+
+### 5) FAQ (rápido)
 
 - ¿Qué es Baseline? Proporción de “good” global en el dataset, referencia de azar.
 - ¿Qué es Precision? De lo seleccionado por la regla, % que realmente es “good”.
@@ -177,7 +231,7 @@ TRACK_STAGE2_MIN_MAXPCT=...
 
 ---
 
-### 5) Workflows sugeridos
+### 6) Workflows sugeridos
 
 1. Exploración inicial (Etapa 1):
 
@@ -197,7 +251,7 @@ TRACK_STAGE2_MIN_MAXPCT=...
 
 ---
 
-### 6) Dónde están los archivos
+### 7) Dónde están los archivos
 
 - Analysis: `analysis-output/report.html`, `summary_stats.csv`, `threshold_search.csv`, `threshold_top100.csv`, `recommended_rule.json`.
 - Backtest: `backtest-output/backtest-report.html`, `backtest_results.csv`, `backtest_top_*.json`, `recommended_backtest_rule.json`.
@@ -205,14 +259,14 @@ TRACK_STAGE2_MIN_MAXPCT=...
 
 ---
 
-### 7) Notas finales
+### 8) Notas finales
 
 - Etapa 2 requiere tracking logs por token (`tracking/<mint>-websocket.log>`). Si no los tienes, puedes activar `TRACK_ALL_MINTS=true` temporalmente para recolectar datos (y luego volver a filtros).
 - Si algo no te cuadra o necesitas presets con restricciones (p. ej., “max precision con coverage ≥ 10%”), lo podemos añadir al backtester.
 
 ---
 
-### 8) Análisis por estrategia (strategies.json)
+### 9) Análisis por estrategia (strategies.json)
 
 Si ejecutas la app con `strategies.json` (múltiples estrategias), cada sesión de tracking queda marcada con `strategyId` en `tracking-summaries.log`. Puedes sacar un resumen por estrategia con:
 
@@ -243,7 +297,7 @@ Notas importantes sobre estrategias:
 
 ---
 
-### 9) Variables de entorno (ENV) y uso actual
+### 10) Variables de entorno (ENV) y uso actual
 
 Resumen práctico:
 
@@ -257,6 +311,17 @@ Resumen práctico:
     - Summaries: `SUMMARIES_PRICE_DECIMALS`, `SUMMARIES_GOOD_THRESHOLD_PCT`, `SUMMARIES_BAD_THRESHOLD_PCT`.
     - Filtros Etapa 1 (fallback si no hay strategies.json): `TRACK_FILTERS_ENABLED`, `TRACK_ALL_MINTS`, `TRACK_MIN_*`, `TRACK_MAX_*`.
 - Stage 2 (confirmación 30/60s): en los reportes verás `TRACK_STAGE2_*` como recomendación, pero NO están implementadas en runtime aún (solo backtest). No añadas estas variables al `.env` hasta que se implemente Etapa 2.
+- Limpieza: se soportan exclusivamente `_SEC/_MIN` (se retiraron fallbacks legacy `_MS`).
+
+Backtest de reglas:
+
+- `BT_LIMIT`, `BT_OBJECTIVE`, `BT_MIN_PRECISION`, `BT_MIN_COVERAGE`, `BT_WORKERS`, `BT_TOPK`.
+
+Wallet backtest:
+
+- `BACKTEST_STRATEGY_ID`, `BACKTEST_INITIAL_SOL`, `BACKTEST_ALLOC_SOL`, `BACKTEST_ALLOC_PCT`,
+  `BACKTEST_TP_PCT`, `BACKTEST_SL_PCT`, `BACKTEST_TIMEOUT_SEC`, `BACKTEST_FEE_PCT`, `BACKTEST_SLIPPAGE_PCT`,
+  `BACKTEST_LIMIT`, `BACKTEST_PARSE_CONCURRENCY`.
 - Variables prescindibles hoy:
     - `TRACKING_TP_PCT`: se carga en config pero no se usa en el código.
     - `MONITOR_CREATOR_SELLS`: actualmente solo habilita logs informativos; no altera el flujo (opcional mantener, se puede retirar si no aporta).

@@ -70,11 +70,12 @@ Una lista priorizada de mejoras para aumentar recall sin perder precisión, redu
 - Identificar sesiones con datos incompletos (sin logs de ventana) y contabilizar impacto.
 - Manejo de outliers (MC extremos, ratios imposibles) con winsorization ligera para la búsqueda de umbrales.
 
-Limpieza de código/ENV:
+Limpieza de código/ENV (estado):
 
-- Retirar `TRACKING_TP_PCT` (no se usa) del `.env` y de `config`.
-- Eliminar funciones de `account trades` (`subscribeAccountTrades`/`unsubscribeAccountTrades` y re-suscripción asociada) si no se usan.
-- Aclarar en docs que `TRACK_*` globales son fallback cuando hay `strategies.json`.
+- [hecho] Retirados fallbacks `*_MS`; ahora solo `_SEC/_MIN`.
+- [pendiente] Retirar `TRACKING_TP_PCT` (no se usa) del `.env` y de `config`.
+- [pendiente] Eliminar funciones de `account trades` si no se usan.
+- [hecho] Aclarado en docs que `TRACK_*` globales son fallback cuando hay `strategies.json`.
 
 ---
 
@@ -86,6 +87,14 @@ Limpieza de código/ENV:
 ---
 
 ### 10) Futuro: modelado ligero
+
+---
+
+### 11) Estado actual de backtesting
+
+- [hecho] Backtest multi‑worker en `analyze:backtest` (BT_WORKERS, BT_TOPK, CSV streaming).
+- [hecho] Wallet backtest secuencial por estrategia (`analyze:wallet`) con TP/SL/Timeout y fees/slippage.
+- [hecho] Parser descarta sesiones sin summary.
 
 - Sin salir de reglas interpretables, probar árboles pequeños (depth 2–3) para encontrar interacciones útiles y luego convertirlos a umbrales simples.
 - Mantener enfoque de reglas para facilidad de operación y `.env` reproducible.

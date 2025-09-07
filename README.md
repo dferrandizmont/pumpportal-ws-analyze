@@ -10,6 +10,9 @@ Una aplicación Node.js que se conecta al WebSocket de PumpPortal para monitorea
 - **Reconección automática** en caso de pérdida de conexión
 - **Configuración flexible** mediante variables de entorno
 - **Alertas por consola** cuando se detectan ventas significativas
+- **Análisis y backtest offline** con reportes HTML y CSV
+- **Backtest multi‑worker** para acelerar la búsqueda de reglas (Etapa 1 + 2)
+- **Wallet backtest** para simular cartera con TP/SL/Timeout por estrategia
 
 ## 📋 Requisitos
 
@@ -68,6 +71,11 @@ CREATOR_SELL_THRESHOLD=80.0
 COINGECKO_SOL_ENDPOINT=https://api.coingecko.com/api/v3/coins/solana
 # Refresh interval for price service (ms)
 PRICE_REFRESH_MS=600000
+
+# Tracking (formatos nuevos, sin *_MS legacy)
+TRACKING_ENTRY_DELAY_SEC=2
+TRACKING_INACTIVITY_MIN=10
+TRACKING_MAX_WINDOW_MIN=20
 ```
 
 ### Configuraciones Recomendadas
@@ -273,6 +281,21 @@ pumpportal-ws-analyze/
 ├── .gitignore             # 🚫 Archivos ignorados
 └── README.md              # 📖 Esta documentación
 ```
+
+## 📈 Scripts de análisis / backtest
+
+- `npm run split:summaries`: divide `logs/tracking-summaries.log` en JSONL por outcome.
+- `npm run analyze:good`: análisis de umbrales (Etapa 1). Genera `analysis-output/report.html`.
+- `npm run analyze:strategies`: métricas por estrategia. Genera `analysis-output/strategies/report.html`.
+- `npm run analyze:backtest`: backtest Etapa 1 + 2 (multi‑worker). Genera `backtest-output/*.csv|json|html`.
+    - Variables útiles: `BT_LIMIT`, `BT_OBJECTIVE`, `BT_MIN_PRECISION`, `BT_MIN_COVERAGE`, `BT_WORKERS` (0 = auto), `BT_TOPK`.
+- `npm run analyze:wallet`: simulación de cartera por estrategia (TP/SL/Timeout).
+    - Variables: `BACKTEST_STRATEGY_ID`, `BACKTEST_INITIAL_SOL`, `BACKTEST_ALLOC_SOL` o `BACKTEST_ALLOC_PCT`, `BACKTEST_TP_PCT`, `BACKTEST_SL_PCT`, `BACKTEST_TIMEOUT_SEC`, `BACKTEST_FEE_PCT`, `BACKTEST_SLIPPAGE_PCT`, `BACKTEST_LIMIT`, `BACKTEST_PARSE_CONCURRENCY`.
+
+Notas:
+
+- Las sesiones sin summary en los `*-websocket.log` se descartan en los análisis/backtests.
+- Solo se soportan variables `_SEC/_MIN` para tiempos; se retiraron los fallbacks legacy `*_MS`.
 
 ## 📝 Ejemplo de Output
 

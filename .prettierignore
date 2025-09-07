@@ -1,0 +1,9 @@
+# Ignore logs and generated outputs
+logs/
+tracking/
+analysis-output/
+backtest-output/
+
+# Log-like files
+*.log
+*.jsonl
