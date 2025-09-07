@@ -1,0 +1,12 @@
+07-09-2025 20:04:32.558 INFO Entry price: 0.000000029063546305 - Entry market cap: 5652 - Buys 3 - Sells 2 - Ratio: 1:0.67 - Min MarketCap: 5671 - Max MarketCap: 6984
+07-09-2025 20:04:32.558 INFO Current price: 0.000000029064 - Current percentage: 0.00% - Max: 0.00% - Min: 0.00% - Market Cap 5652 - Trading time: 00:00:02
+07-09-2025 20:04:36.408 INFO Current price: 0.000000028965 - Current percentage: 6.97% - Max: 6.97% - Min: 0.00% - Market Cap 6046 - Trading time: 00:00:05
+07-09-2025 20:04:52.655 INFO Current price: 0.000000029856 - Current percentage: 6.60% - Max: 6.97% - Min: 0.00% - Market Cap 6025 - Trading time: 00:00:22
+07-09-2025 20:05:13.038 INFO Current price: 0.000000028867 - Current percentage: 0.00% - Max: 6.97% - Min: 0.00% - Market Cap 5652 - Trading time: 00:00:42
+
+
+
+
+
+
+07-09-2025 20:15:13.038 INFO {"type":"summary","reason":"inactivity","startedAt":"2025-09-07T18:04:30.558Z","endedAt":"2025-09-07T18:15:13.038Z","durationSec":642,"entryPrice":2.906354630475361e-8,"entryMarketCapSol":27.958993476234856,"entryMarketCapUsd":5651.910531220876,"minPct":0,"maxPct":6.969221591943088,"buyCount":2,"sellCount":2,"tradeCount":4,"entryRecorded":true,"noPostThresholdTrades":false,"triggerAt":"2025-09-07T18:04:30.558Z","ageAtTriggerSec":4,"preTotalTrades":4,"preBuys":2,"preSells":2,"preUniqueTraders":2,"preEntryTotalTrades":5,"preEntryBuys":3,"preEntrySells":2,"preEntryUniqueTraders":3,"preEntryMinMcUsd":5670.765936105323,"preEntryMaxMcUsd":6983.875935261475,"thresholdMcSol":27.958993476234856,"thresholdMcUsd":5651.910531220876,"thresholdPrice":2.906354630475361e-8}
