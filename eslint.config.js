@@ -3,6 +3,8 @@ import importPlugin from "eslint-plugin-import";
 import prettierConfig from "eslint-config-prettier";
 
 export default [
+	// Ignore heavy/generated folders and logs
+	{ ignores: ["logs/**", "tracking/**", "analysis-output/**", "backtest-output/**", "**/*.log", "**/*.jsonl"] },
 	js.configs.recommended,
 	{
 		languageOptions: {
@@ -32,7 +34,10 @@ export default [
 			import: importPlugin,
 		},
 		rules: {
-			"no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
+			"no-unused-vars": [
+				"warn",
+				{ argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none", caughtErrorsIgnorePattern: "^_" }
+			],
 			"import/no-unresolved": "off",
 		},
 	},

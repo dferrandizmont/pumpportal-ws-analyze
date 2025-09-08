@@ -1,6 +1,8 @@
 import fs from "fs";
 import path from "path";
-import { readJsonl, ensureDirSync, writeCsv } from "../lib/jsonl.js";
+import os from "os";
+import { isMainThread, Worker, parentPort, workerData } from "worker_threads";
+import { readJsonl, ensureDirSync } from "../lib/jsonl.js";
 import { computeFeatures, passesRule } from "../lib/features.js";
 import { parseTrackingSessions } from "./lib/tracking-parse.js";
 
@@ -80,6 +82,21 @@ async function buildEarlyMetricsIndex(records) {
 	return index;
 }
 
+function toPlainEarlyIndex(index) {
+	const out = {};
+	for (const [sid, tokenMap] of index.entries()) {
+		const sidKey = sid === null ? "__default__" : String(sid);
+		out[sidKey] = {};
+		for (const [token, sessMap] of tokenMap.entries()) {
+			out[sidKey][token] = {};
+			for (const [sessKey, metrics] of sessMap.entries()) {
+				out[sidKey][token][sessKey] = metrics;
+			}
+		}
+	}
+	return out;
+}
+
 function* genStage1Rules() {
 	const rMins = [0.55, 0.6, 0.65, 0.7];
 	const bMins = [5, 8, 10];
@@ -127,48 +144,15 @@ function* genStage2Rules() {
 	for (const w of windows) for (const t of tradesMin) for (const p of maxPctMin) yield { windowSec: w, minTrades: t, minMaxPct: p };
 }
 
-function applyStage2(metrics, stage2) {
-	if (!stage2) return true;
-	const { windowSec, minTrades, minMaxPct } = stage2;
-	if (!metrics) return minTrades <= 0 && minMaxPct <= 0; // missing metrics only pass if thresholds are 0
-	const trades = windowSec === 30 ? metrics.trades_30s : metrics.trades_60s;
-	const maxPct = windowSec === 30 ? metrics.maxPct_30s : metrics.maxPct_60s;
-	return trades >= minTrades || maxPct >= minMaxPct;
+function listStage2() {
+	const arr = [];
+	for (const r of genStage2Rules()) arr.push(r);
+	return arr;
 }
 
-function evaluate(records, earlyIndex, stage1, stage2) {
-	let positives = 0,
-		goodPred = 0,
-		badPred = 0,
-		neutralPred = 0,
-		totalGood = 0,
-		total = records.length;
+// applyStage2 handled in workers
 
-	for (const r of records) {
-		if (r.outcome === "good") totalGood++;
-		const f = computeFeatures(r);
-		const pass1 = passesRule(f, stage1);
-		if (!pass1) continue;
-		// Resolve early metrics map by strategyId (if available) and token
-		const stratMap = earlyIndex.get(r.strategyId || null);
-		const tokenMap = stratMap ? stratMap.get(r.tokenAddress) : null;
-		const m = tokenMap ? tokenMap.get(keySession(r.startedAt, r.endedAt)) : null;
-		const pass2 = applyStage2(m, stage2);
-		if (!pass2) continue;
-		positives++;
-		if (r.outcome === "good") goodPred++;
-		else if (r.outcome === "bad") badPred++;
-		else neutralPred++;
-	}
-
-	const precision = positives ? goodPred / positives : 0;
-	const recall = totalGood ? goodPred / totalGood : 0;
-	const f1 = precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0;
-	const coverage = total ? positives / total : 0;
-	const baseline = totalGood / total;
-	const lift = baseline > 0 ? precision / baseline : 0;
-	return { positives, goodPred, badPred, neutralPred, precision, recall, f1, coverage, baseline, lift, totalGood, total };
-}
+// evaluate() replaced by worker-based evaluation
 
 function toFixed(x, d = 4) {
 	return Number.isFinite(x) ? Number(x.toFixed(d)) : 0;
@@ -180,61 +164,141 @@ async function main() {
 		console.error("No hay datos en outcomes. Ejecuta split:summaries primero.");
 		process.exit(1);
 	}
+	// Build multi-worker evaluation
 	const earlyIndex = await buildEarlyMetricsIndex(records);
+	const earlyPlain = toPlainEarlyIndex(earlyIndex);
+	const stage1All = Array.from(genStage1Rules());
+	const stage2All = listStage2();
 
-	const results = [];
-	for (const s1 of genStage1Rules()) {
-		for (const s2 of genStage2Rules()) {
-			const m = evaluate(records, earlyIndex, s1, s2);
-			results.push({ ...s1, ...s2, ...m });
-		}
+	// Serialize records and early index for workers
+	const dataPath = path.join(outputDir, "__mw_records.json");
+	const earlyPath = path.join(outputDir, "__mw_early.json");
+	fs.writeFileSync(
+		dataPath,
+		JSON.stringify(
+			{
+				records: records.map((r) => ({
+					outcome: r.outcome,
+					tokenAddress: r.tokenAddress,
+					strategyId: r.strategyId || null,
+					startedAt: r.startedAt || null,
+					endedAt: r.endedAt || null,
+				})),
+			},
+			null
+		)
+	);
+	fs.writeFileSync(earlyPath, JSON.stringify(earlyPlain));
+
+	// CSV stream
+	const csvHeaders = [
+		"minBuyRatio",
+		"minBuys",
+		"minTotalTrades",
+		"minUniqueTraders",
+		"minNetBuys",
+		"minMcUsd",
+		"maxMcUsd",
+		"minUniquePerTrade",
+		"minBuysPerUnique",
+		"maxAgeAtTriggerSec",
+		"maxMcVolatilityRatio",
+		"windowSec",
+		"minTrades",
+		"minMaxPct",
+		"positives",
+		"goodPred",
+		"badPred",
+		"neutralPred",
+		"precision",
+		"recall",
+		"f1",
+		"coverage",
+		"lift",
+		"baseline",
+		"totalGood",
+		"total",
+	];
+	const outCsv = fs.createWriteStream(path.join(outputDir, "backtest_results.csv"), { encoding: "utf8" });
+	outCsv.write(csvHeaders.join(",") + "\n");
+
+	let WORKERS = parseInt(process.env.BT_WORKERS || "0", 10) || 0;
+	if (WORKERS <= 0) WORKERS = Math.max(1, (os.cpus()?.length || 2) - 1);
+	const chunkSize = Math.ceil(stage1All.length / WORKERS);
+
+	const topK = parseInt(process.env.BT_TOPK || "25", 10) || 25;
+	const topF1 = [];
+	const topPrecision = [];
+	const topRecall = [];
+	function pushTop(arr, row, keyA, keyB) {
+		let i = arr.findIndex((x) => x[keyA] < row[keyA] || (x[keyA] === row[keyA] && x[keyB] < row[keyB]));
+		if (i === -1) i = arr.length;
+		arr.splice(i, 0, row);
+		if (arr.length > topK) arr.pop();
 	}
 
-	// Orderings
-	const byF1 = results.slice().sort((a, b) => b.f1 - a.f1 || b.precision - a.precision);
-	const byPrecision = results.slice().sort((a, b) => b.precision - a.precision || b.recall - a.recall);
-	const byRecall = results.slice().sort((a, b) => b.recall - a.recall || b.precision - a.precision);
-
-	// Persist CSV
-	writeCsv(
-		path.join(outputDir, "backtest_results.csv"),
-		results.map((r) => ({
-			...r,
-			precision: toFixed(r.precision, 4),
-			recall: toFixed(r.recall, 4),
-			f1: toFixed(r.f1, 4),
-			coverage: toFixed(r.coverage, 4),
-			lift: toFixed(r.lift, 4),
-		})),
-		[
-			"minBuyRatio",
-			"minBuys",
-			"minTotalTrades",
-			"minUniqueTraders",
-			"minNetBuys",
-			"minMcUsd",
-			"maxMcUsd",
-			"minUniquePerTrade",
-			"minBuysPerUnique",
-			"maxAgeAtTriggerSec",
-			"maxMcVolatilityRatio",
-			"windowSec",
-			"minTrades",
-			"minMaxPct",
-			"positives",
-			"goodPred",
-			"badPred",
-			"neutralPred",
-			"precision",
-			"recall",
-			"f1",
-			"coverage",
-			"lift",
-			"baseline",
-			"totalGood",
-			"total",
-		]
-	);
+	await new Promise((resolve, reject) => {
+		let finished = 0;
+		for (let w = 0; w < WORKERS; w++) {
+			const start = w * chunkSize;
+			const end = Math.min(stage1All.length, start + chunkSize);
+			const slice = stage1All.slice(start, end);
+			if (!slice.length) {
+				finished++;
+				if (finished === WORKERS) resolve();
+				continue;
+			}
+			const worker = new Worker(new URL(import.meta.url), {
+				workerData: { dataPath, earlyPath, stage1Slice: slice, stage2List: stage2All },
+			});
+			worker.on("message", (msg) => {
+				if (msg?.type === "batch" && Array.isArray(msg.rows)) {
+					for (const r of msg.rows) {
+						const row = [
+							r.minBuyRatio,
+							r.minBuys,
+							r.minTotalTrades,
+							r.minUniqueTraders,
+							r.minNetBuys,
+							r.minMcUsd,
+							r.maxMcUsd,
+							r.minUniquePerTrade,
+							r.minBuysPerUnique,
+							r.maxAgeAtTriggerSec,
+							r.maxMcVolatilityRatio,
+							r.windowSec,
+							r.minTrades,
+							r.minMaxPct,
+							r.positives,
+							r.goodPred,
+							r.badPred,
+							r.neutralPred,
+							toFixed(r.precision, 4),
+							toFixed(r.recall, 4),
+							toFixed(r.f1, 4),
+							toFixed(r.coverage, 4),
+							toFixed(r.lift, 4),
+							toFixed(r.baseline, 4),
+							r.totalGood,
+							r.total,
+						].join(",");
+						outCsv.write(row + "\n");
+						pushTop(topF1, r, "f1", "precision");
+						pushTop(topPrecision, r, "precision", "recall");
+						pushTop(topRecall, r, "recall", "precision");
+					}
+				} else if (msg?.type === "done") {
+					finished++;
+					if (finished === WORKERS) resolve();
+				}
+			});
+			worker.on("error", reject);
+			worker.on("exit", (code) => {
+				if (code !== 0) reject(new Error(`Worker exited with code ${code}`));
+			});
+		}
+	});
+	outCsv.end();
 
 	const pickTop = (arr, n = 25) =>
 		arr.slice(0, n).map((r) => ({
@@ -246,19 +310,19 @@ async function main() {
 			lift: toFixed(r.lift, 4),
 		}));
 
-	fs.writeFileSync(path.join(outputDir, "backtest_top_f1.json"), JSON.stringify(pickTop(byF1, 50), null, 2));
-	fs.writeFileSync(path.join(outputDir, "backtest_top_precision.json"), JSON.stringify(pickTop(byPrecision, 50), null, 2));
-	fs.writeFileSync(path.join(outputDir, "backtest_top_recall.json"), JSON.stringify(pickTop(byRecall, 50), null, 2));
+	fs.writeFileSync(path.join(outputDir, "backtest_top_f1.json"), JSON.stringify(pickTop(topF1, 50), null, 2));
+	fs.writeFileSync(path.join(outputDir, "backtest_top_precision.json"), JSON.stringify(pickTop(topPrecision, 50), null, 2));
+	fs.writeFileSync(path.join(outputDir, "backtest_top_recall.json"), JSON.stringify(pickTop(topRecall, 50), null, 2));
 
 	// Pick recommended rule based on objective
-	let recommended = byF1[0] || null;
+	let recommended = topF1[0] || null;
 	if (OBJECTIVE === "precision") {
-		recommended = byPrecision.find((r) => r.coverage >= MIN_COVER) || byPrecision[0] || null;
+		recommended = topPrecision.find((r) => r.coverage >= MIN_COVER) || topPrecision[0] || null;
 	} else if (OBJECTIVE === "recall") {
-		recommended = byRecall[0] || null;
+		recommended = topRecall[0] || null;
 	} else if (OBJECTIVE === "recall_min_precision") {
-		const filt = byRecall.filter((r) => r.precision >= MIN_PREC);
-		recommended = (filt.length ? filt[0] : byRecall[0]) || null;
+		const filt = topRecall.filter((r) => r.precision >= MIN_PREC);
+		recommended = (filt.length ? filt[0] : topRecall[0]) || null;
 	}
 	if (recommended) {
 		fs.writeFileSync(path.join(outputDir, "recommended_backtest_rule.json"), JSON.stringify(recommended, null, 2));
@@ -274,23 +338,97 @@ async function main() {
 	const html = buildBacktestHtml({
 		counts,
 		baseline: counts.total ? counts.good / counts.total : 0,
-		topF1: pickTop(byF1, 25),
-		topPrecision: pickTop(byPrecision, 25),
-		topRecall: pickTop(byRecall, 25),
+		topF1: pickTop(topF1, 25),
+		topPrecision: pickTop(topPrecision, 25),
+		topRecall: pickTop(topRecall, 25),
 		recommended,
 	});
 	fs.writeFileSync(path.join(outputDir, "backtest-report.html"), html, "utf8");
 
-	console.log("Backtest completado.");
+	console.log("Backtest completado (multi-worker).");
 	console.log(`Resultados: ${path.join(outputDir, "backtest_results.csv")}`);
 	console.log(`Top F1/Precision/Recall en JSON en ${outputDir}`);
 	if (recommended) console.log("Regla recomendada (" + OBJECTIVE + "):", recommended);
 }
 
-main().catch((e) => {
-	console.error("Error en backtest:", e);
-	process.exit(1);
-});
+if (isMainThread) {
+	main().catch((e) => {
+		console.error("Error en backtest:", e);
+		process.exit(1);
+	});
+} else {
+	// Worker thread entry: compute evaluation for a slice of stage1 rules
+	(async function workerMain() {
+		try {
+			const { dataPath, earlyPath, stage1Slice, stage2List } = workerData;
+			const recRaw = fs.readFileSync(dataPath, "utf8");
+			const { records } = JSON.parse(recRaw);
+			const earlyPlain = JSON.parse(fs.readFileSync(earlyPath, "utf8"));
+			const BATCH = 2000;
+
+			function getEarlyMetrics(rec) {
+				const sidKey = rec.strategyId ? String(rec.strategyId) : "__default__";
+				const tokenMap = earlyPlain[sidKey] && earlyPlain[sidKey][rec.tokenAddress];
+				if (!tokenMap) return null;
+				const k = `${rec.startedAt || ""}|${rec.endedAt || ""}`;
+				return tokenMap[k] || null;
+			}
+
+			function applyStage2Local(metrics, stage2) {
+				if (!stage2) return true;
+				const { windowSec, minTrades, minMaxPct } = stage2;
+				if (!metrics) return minTrades <= 0 && minMaxPct <= 0;
+				const trades = windowSec === 30 ? metrics.trades_30s : metrics.trades_60s;
+				const maxPct = windowSec === 30 ? metrics.maxPct_30s : metrics.maxPct_60s;
+				return trades >= minTrades || maxPct >= minMaxPct;
+			}
+
+			function evalCombo(stage1, stage2) {
+				let positives = 0,
+					goodPred = 0,
+					badPred = 0,
+					neutralPred = 0,
+					totalGood = 0,
+					total = records.length;
+				for (const r of records) {
+					if (r.outcome === "good") totalGood++;
+					const f = computeFeatures(r);
+					if (!passesRule(f, stage1)) continue;
+					const m = getEarlyMetrics(r);
+					if (!applyStage2Local(m, stage2)) continue;
+					positives++;
+					if (r.outcome === "good") goodPred++;
+					else if (r.outcome === "bad") badPred++;
+					else neutralPred++;
+				}
+				const precision = positives ? goodPred / positives : 0;
+				const recall = totalGood ? goodPred / totalGood : 0;
+				const f1 = precision + recall > 0 ? (2 * precision * recall) / (precision + recall) : 0;
+				const coverage = total ? positives / total : 0;
+				const baseline = totalGood / total;
+				const lift = baseline > 0 ? precision / baseline : 0;
+				return { positives, goodPred, badPred, neutralPred, precision, recall, f1, coverage, baseline, lift, totalGood, total };
+			}
+
+			let batch = [];
+			for (const s1 of stage1Slice) {
+				for (const s2 of stage2List) {
+					const m = evalCombo(s1, s2);
+					batch.push({ ...s1, ...s2, ...m });
+					if (batch.length >= BATCH) {
+						parentPort.postMessage({ type: "batch", rows: batch });
+						batch = [];
+					}
+				}
+			}
+			if (batch.length) parentPort.postMessage({ type: "batch", rows: batch });
+			parentPort.postMessage({ type: "done" });
+		} catch (e) {
+			parentPort.postMessage({ type: "error", error: String(e && e.stack ? e.stack : e) });
+			process.exit(1);
+		}
+	})();
+}
 
 // ---------------- HTML helpers ----------------
 function htmlesc(s) {
