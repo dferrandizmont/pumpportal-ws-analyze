@@ -113,6 +113,34 @@ class TokenMonitor {
 		const trackingByStrategy = new Map();
 		let totalActiveTrackingTokens = 0;
 		let totalActiveTrackingSessions = 0;
+
+		// Primero, inicializar todas las estrategias desde strategies.json
+		try {
+			const strategiesFile = process.env.STRATEGIES_FILE || path.join(process.cwd(), "strategies.json");
+			if (fs.existsSync(strategiesFile)) {
+				const strategiesData = JSON.parse(fs.readFileSync(strategiesFile, "utf8"));
+				if (Array.isArray(strategiesData)) {
+					for (const strategy of strategiesData) {
+						if (strategy.id) {
+							trackingByStrategy.set(strategy.id, {
+								sessions: 0,
+								entriesRecorded: 0,
+								noPostTrades: 0,
+								tradeCountTotal: 0,
+								maxPctSum: 0,
+								maxPctCount: 0,
+								minPctSum: 0,
+								minPctCount: 0,
+							});
+						}
+					}
+				}
+			}
+		} catch (error) {
+			logger.tokenMonitor(`Error reading strategies.json: ${error.message}`);
+		}
+
+		// Luego, actualizar con datos reales de tracking activo
 		for (const [, byToken] of this.activeTracking) {
 			if (byToken && byToken.size > 0) totalActiveTrackingTokens++;
 			for (const [, session] of byToken) {
