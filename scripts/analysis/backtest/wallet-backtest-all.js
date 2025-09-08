@@ -79,7 +79,7 @@ function buildIndexHtml(entries) {
     }
     
     .wrap {
-      max-width: 1200px;
+      max-width: 1600px;
       margin: 24px auto;
       padding: 0 16px 48px;
     }

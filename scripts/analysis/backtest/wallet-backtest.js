@@ -501,7 +501,7 @@ async function main() {
     }
 
     .container {
-      max-width: 1400px;
+      max-width: 1600px;
       margin: 0 auto;
       padding: 2rem;
       min-height: 100vh;
@@ -983,9 +983,10 @@ async function main() {
               <th>Exit %</th>
               <th>Net %</th>
               <th>Allocation</th>
-              <th>PnL (SOL)</th>
-              <th>Started</th>
-              <th>Ended</th>
+          <th>PnL (SOL)</th>
+          <th>Wallet (SOL)</th>
+          <th>Started</th>
+          <th>Ended</th>
             </tr>
           </thead>
           <tbody>
@@ -1015,6 +1016,7 @@ async function main() {
                 <td><span class="percentage ${netPctClass}">${toFixed(t.netPct, 2)}%</span></td>
                 <td>${toFixed(t.alloc, 4)} SOL</td>
                 <td><span class="percentage ${pnlClass}">${toFixed(t.pnl, 6)}</span></td>
+                <td>${toFixed(t.walletAfter, 6)}</td>
                 <td>${esc(t.startedAt ? new Date(t.startedAt).toLocaleString("en-US") : "")}</td>
                 <td>${esc(t.endedAt ? new Date(t.endedAt).toLocaleString("en-US") : "")}</td>
               </tr>`;
