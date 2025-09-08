@@ -320,5 +320,110 @@
 			"maxMcVolatilityRatio": 5
 		},
 		"tracking": { "logDir": "tracking/catchAllYoung" }
+	},
+	{
+		"id": "highPrecisionMinMC",
+		"name": "High Precision (Min MC)",
+		"description": "High precision targeting minimum MC range based on TP signals (6913-10000 USD).",
+		"trackingFilters": {
+			"enabled": true,
+			"trackAllMints": false,
+			"minBuys": 5,
+			"minTotalTrades": 15,
+			"minUniqueTraders": 12,
+			"minBuyRatio": 0.65,
+			"minNetBuys": 2,
+			"minMcUsd": 6500,
+			"maxMcUsd": 10000,
+			"minUniquePerTrade": 0.7,
+			"minBuysPerUnique": 0,
+			"maxAgeAtTriggerSec": null,
+			"maxMcVolatilityRatio": 5
+		},
+		"tracking": { "logDir": "tracking/highPrecisionMinMC" }
+	},
+	{
+		"id": "highPrecisionMedianMC",
+		"name": "High Precision (Median MC)",
+		"description": "High precision targeting median MC range based on TP signals (9260-12000 USD).",
+		"trackingFilters": {
+			"enabled": true,
+			"trackAllMints": false,
+			"minBuys": 5,
+			"minTotalTrades": 15,
+			"minUniqueTraders": 12,
+			"minBuyRatio": 0.65,
+			"minNetBuys": 2,
+			"minMcUsd": 9000,
+			"maxMcUsd": 12000,
+			"minUniquePerTrade": 0.7,
+			"minBuysPerUnique": 0,
+			"maxAgeAtTriggerSec": null,
+			"maxMcVolatilityRatio": 5
+		},
+		"tracking": { "logDir": "tracking/highPrecisionMedianMC" }
+	},
+	{
+		"id": "highPrecisionAvgMC",
+		"name": "High Precision (Avg MC)",
+		"description": "High precision targeting average MC range based on TP signals (10165-15000 USD).",
+		"trackingFilters": {
+			"enabled": true,
+			"trackAllMints": false,
+			"minBuys": 5,
+			"minTotalTrades": 15,
+			"minUniqueTraders": 12,
+			"minBuyRatio": 0.65,
+			"minNetBuys": 2,
+			"minMcUsd": 10000,
+			"maxMcUsd": 15000,
+			"minUniquePerTrade": 0.7,
+			"minBuysPerUnique": 0,
+			"maxAgeAtTriggerSec": null,
+			"maxMcVolatilityRatio": 5
+		},
+		"tracking": { "logDir": "tracking/highPrecisionAvgMC" }
+	},
+	{
+		"id": "highPrecisionMaxMC",
+		"name": "High Precision (Max MC)",
+		"description": "High precision targeting maximum MC range based on TP signals (25000-39062 USD).",
+		"trackingFilters": {
+			"enabled": true,
+			"trackAllMints": false,
+			"minBuys": 5,
+			"minTotalTrades": 15,
+			"minUniqueTraders": 12,
+			"minBuyRatio": 0.65,
+			"minNetBuys": 2,
+			"minMcUsd": 25000,
+			"maxMcUsd": 39000,
+			"minUniquePerTrade": 0.7,
+			"minBuysPerUnique": 0,
+			"maxAgeAtTriggerSec": null,
+			"maxMcVolatilityRatio": 5
+		},
+		"tracking": { "logDir": "tracking/highPrecisionMaxMC" }
+	},
+	{
+		"id": "highPrecisionSweetSpot",
+		"name": "High Precision (Sweet Spot)",
+		"description": "High precision targeting the sweet spot MC range (8000-20000 USD) with slightly relaxed filters.",
+		"trackingFilters": {
+			"enabled": true,
+			"trackAllMints": false,
+			"minBuys": 5,
+			"minTotalTrades": 12,
+			"minUniqueTraders": 10,
+			"minBuyRatio": 0.6,
+			"minNetBuys": 2,
+			"minMcUsd": 8000,
+			"maxMcUsd": 20000,
+			"minUniquePerTrade": 0.65,
+			"minBuysPerUnique": 0,
+			"maxAgeAtTriggerSec": null,
+			"maxMcVolatilityRatio": 5
+		},
+		"tracking": { "logDir": "tracking/highPrecisionSweetSpot" }
 	}
 ]

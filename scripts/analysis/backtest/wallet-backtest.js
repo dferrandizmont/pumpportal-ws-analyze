@@ -343,6 +343,7 @@ async function main() {
 			extraTransfersExitSol,
 			extraTransfersSolRoundTrip,
 			delaySec: usedDelaySec,
+			entryMarketCap: s.thresholdMcUsd || 0, // Add entry market cap
 		});
 
 		if (wallet <= 0) {
@@ -353,6 +354,20 @@ async function main() {
 	// Finalizar y avanzar línea de la barra
 	drawProgress(true);
 	process.stdout.write("\n");
+
+	// Analyze TP market caps
+	const tpTrades = trades.filter((t) => t.exitReason === "TP" || t.exitReason === "TP_LOSS");
+	const tpMarketCaps = tpTrades.map((t) => t.entryMarketCap).filter((mc) => mc > 0);
+	const tpMarketCapStats =
+		tpMarketCaps.length > 0
+			? {
+					count: tpMarketCaps.length,
+					min: Math.min(...tpMarketCaps),
+					max: Math.max(...tpMarketCaps),
+					avg: tpMarketCaps.reduce((a, b) => a + b, 0) / tpMarketCaps.length,
+					median: [...tpMarketCaps].sort((a, b) => a - b)[Math.floor(tpMarketCaps.length / 2)],
+				}
+			: { count: 0, min: 0, max: 0, avg: 0, median: 0 };
 
 	// Calcular métricas adicionales
 	const maxDrawdown = computeDrawdown(equity);
@@ -395,6 +410,7 @@ async function main() {
 		totalProfits: toFixed(totalProfits, 6),
 		totalLosses: toFixed(totalLosses, 6),
 		exitReasons,
+		tpMarketCapStats,
 		params: {
 			allocSol,
 			allocPct,
@@ -424,6 +440,7 @@ async function main() {
 			pnl: toFixed(t.pnl, 6),
 			walletBefore: toFixed(t.walletBefore, 6),
 			walletAfter: toFixed(t.walletAfter, 6),
+			entryMarketCap: toFixed(t.entryMarketCap, 2),
 		})),
 		[
 			"strategyId",
@@ -451,6 +468,7 @@ async function main() {
 			"pnl",
 			"walletBefore",
 			"walletAfter",
+			"entryMarketCap",
 		]
 	);
 
@@ -933,6 +951,37 @@ async function main() {
     </div>
 
     <div class="section">
+      <h2 class="section-title">TP Signals Market Cap Analysis</h2>
+      <div class="metrics-grid">
+        <div class="metric-card neutral">
+          <div class="metric-label">TP Signals Count</div>
+          <div class="metric-value">${summary.tpMarketCapStats.count}</div>
+          <div class="metric-subtitle">Number of TP signals</div>
+        </div>
+        <div class="metric-card neutral">
+          <div class="metric-label">Min Market Cap</div>
+          <div class="metric-value">${toFixed(summary.tpMarketCapStats.min, 0)} USD</div>
+          <div class="metric-subtitle">Lowest entry MC for TP signals</div>
+        </div>
+        <div class="metric-card neutral">
+          <div class="metric-label">Max Market Cap</div>
+          <div class="metric-value">${toFixed(summary.tpMarketCapStats.max, 0)} USD</div>
+          <div class="metric-subtitle">Highest entry MC for TP signals</div>
+        </div>
+        <div class="metric-card neutral">
+          <div class="metric-label">Avg Market Cap</div>
+          <div class="metric-value">${toFixed(summary.tpMarketCapStats.avg, 0)} USD</div>
+          <div class="metric-subtitle">Average entry MC for TP signals</div>
+        </div>
+        <div class="metric-card neutral">
+          <div class="metric-label">Median Market Cap</div>
+          <div class="metric-value">${toFixed(summary.tpMarketCapStats.median, 0)} USD</div>
+          <div class="metric-subtitle">Median entry MC for TP signals</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
       <h2 class="section-title">Configuration Parameters</h2>
       <div class="metrics-grid">
         <div class="metric-card neutral">
@@ -996,6 +1045,7 @@ async function main() {
               <th>Allocation</th>
           <th>PnL (SOL)</th>
           <th>Wallet (SOL)</th>
+          <th>Entry MC (USD)</th>
           <th>Started</th>
           <th>Ended</th>
             </tr>
@@ -1028,6 +1078,7 @@ async function main() {
                 <td>${toFixed(t.alloc, 4)} SOL</td>
                 <td><span class="percentage ${pnlClass}">${toFixed(t.pnl, 6)}</span></td>
                 <td>${toFixed(t.walletAfter, 6)}</td>
+                <td>${toFixed(t.entryMarketCap, 0)}</td>
                 <td>${esc(t.startedAt ? new Date(t.startedAt).toLocaleString("en-US") : "")}</td>
                 <td>${esc(t.endedAt ? new Date(t.endedAt).toLocaleString("en-US") : "")}</td>
               </tr>`;

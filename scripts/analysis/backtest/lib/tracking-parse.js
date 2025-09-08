@@ -66,6 +66,7 @@ export async function parseTrackingSessions(filePath) {
 						startedAt: cur.startedAt,
 						endedAt: cur.endedAt,
 						points: cur.points,
+						thresholdMcUsd: obj.thresholdMcUsd || null,
 						metrics: {
 							trades_30s: m30.trades,
 							trades_60s: m60.trades,
