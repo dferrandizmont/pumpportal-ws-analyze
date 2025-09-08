@@ -760,7 +760,7 @@ function buildHtmlReport({ feats, summaryRows, baseline, top, recommended, bestP
             try {
               await navigator.clipboard.writeText(code.innerText);
               const old = btn.textContent;
-              btn.textContent = 'Copiado!';
+              btn.textContent = 'Copied!';
               setTimeout(()=>{ btn.textContent = old; }, 1500);
             } catch (e) {
               console.error('Copy failed', e);
@@ -779,7 +779,7 @@ function buildHtmlReport({ feats, summaryRows, baseline, top, recommended, bestP
             try {
               await navigator.clipboard.writeText(code.innerText);
               const old = btn.textContent;
-              btn.textContent = 'Copiado!';
+              btn.textContent = 'Copied!';
               setTimeout(()=>{ btn.textContent = old; }, 1500);
             } catch (e) { console.error('Copy failed', e); }
           });

@@ -206,17 +206,17 @@ function buildIndexHtml(entries) {
 				const dd = pct(s.maxDrawdown);
 				const retClass = Number.isFinite(s.totalReturn) && s.totalReturn >= 0 ? "pos" : "neg";
 				return (
-					`<div class=\"card\">\n` +
-					`<div class=\"top\">\n` +
-					`<div>\n<div class=\"id\">${esc(e.id)}</div>\n<div class=\"name\">${esc(e.name || "")}</div>\n</div>\n` +
-					`<div><a href=\"${encodeURIComponent(e.id)}/report.html\">Open Report</a></div>\n` +
+					`<div class="card">\n` +
+					`<div class="top">\n` +
+					`<div>\n<div class="id">${esc(e.id)}</div>\n<div class="name">${esc(e.name || "")}</div>\n</div>\n` +
+					`<div><a href="${encodeURIComponent(e.id)}/report.html">Open Report</a></div>\n` +
 					`</div>\n` +
-					`<div class=\"kpis\">\n` +
-					`<div class=\"kpi\"><b>Final</b><div class=\"val\">${fin}</div></div>\n` +
-					`<div class=\"kpi\"><b>Trades</b><div class=\"val\">${tr}</div></div>\n` +
-					`<div class=\"kpi\"><b>WinRate</b><div class=\"val\">${wr}</div></div>\n` +
-					`<div class=\"kpi\"><b>Return</b><div class=\"val ${retClass}\">${ret}</div></div>\n` +
-					`<div class=\"kpi\"><b>MaxDD</b><div class=\"val\">${dd}</div></div>\n` +
+					`<div class="kpis">\n` +
+					`<div class="kpi"><b>Final</b><div class="val">${fin}</div></div>\n` +
+					`<div class="kpi"><b>Trades</b><div class="val">${tr}</div></div>\n` +
+					`<div class="kpi"><b>WinRate</b><div class="val">${wr}</div></div>\n` +
+					`<div class="kpi"><b>Return</b><div class="val ${retClass}">${ret}</div></div>\n` +
+					`<div class="kpi"><b>MaxDD</b><div class="val">${dd}</div></div>\n` +
 					`</div>\n` +
 					`</div>`
 				);
@@ -251,7 +251,9 @@ async function main() {
 					for (const f of fs.readdirSync(outDir)) {
 						fs.rmSync(path.join(outDir, f), { recursive: true, force: true });
 					}
-				} catch {}
+				} catch {
+					// ignore
+				}
 			}
 			ensureDirSync(outDir);
 			console.log(`[w${wid}] [${myIdx + 1}/${strategies.length}] Strategy: ${sid} -> ${outDir}`);
@@ -275,7 +277,9 @@ async function main() {
 			let summary = null;
 			try {
 				if (fs.existsSync(p)) summary = JSON.parse(fs.readFileSync(p, "utf8"));
-			} catch {}
+			} catch {
+				// ignore
+			}
 			return { id: s.id, name: s.name || "", summary };
 		});
 	const indexHtml = buildIndexHtml(entries);

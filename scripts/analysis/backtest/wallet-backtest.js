@@ -7,8 +7,7 @@ import { parseTrackingSessions } from "./lib/tracking-parse.js";
 
 dotenv.config();
 
-const OUTPUT_DIR = process.env.BACKTEST_OUTPUT_DIR || path.join("backtest-output", "wallet");
-ensureDirSync(OUTPUT_DIR);
+// OUTPUT_DIR will be set later after we know the strategyId
 
 function readStrategies() {
 	try {
@@ -102,6 +101,10 @@ async function main() {
 		process.exit(1);
 	}
 
+	// Configure output directory for this specific strategy
+	const OUTPUT_DIR = process.env.BACKTEST_OUTPUT_DIR || path.join("backtest-output", "wallet", strategyId);
+	ensureDirSync(OUTPUT_DIR);
+
 	const initialSol = asNumber(process.env.BACKTEST_INITIAL_SOL, 1.5);
 	const allocSol = asNumber(process.env.BACKTEST_ALLOC_SOL, 0);
 	const allocPct = allocSol > 0 ? 0 : asNumber(process.env.BACKTEST_ALLOC_PCT, 1.0); // por defecto 100% si no hay alloc SOL
@@ -111,7 +114,20 @@ async function main() {
 	const feePct = asNumber(process.env.BACKTEST_FEE_PCT, 0);
 	const slippagePct = asNumber(process.env.BACKTEST_SLIPPAGE_PCT, 0);
 	// Costes adicionales realistas
-	const portalFeePct = asNumber(process.env.BACKTEST_PORTAL_FEE_PCT, 1.0); // % por lado (entrada/salida)
+	const apiType = (process.env.BACKTEST_API_TYPE || "lightning").toLowerCase(); // lightning | local
+	const portalFeeDefault = apiType === "local" ? 0.5 : 1.0; // PumpPortal: Local=0.5% por trade, Lightning=1% por trade
+	const portalFeePct = asNumber(process.env.BACKTEST_PORTAL_FEE_PCT, portalFeeDefault); // % por lado (entrada/salida)
+	// Priority fee y otros transfer SOL (se restan como costes fijos)
+	const priorityFeeEntrySol = asNumber(process.env.BACKTEST_PRIORITY_FEE_SOL_ENTRY, 0);
+	const priorityFeeExitSol = asNumber(process.env.BACKTEST_PRIORITY_FEE_SOL_EXIT, 0);
+	const extraTransfersEntrySol = asNumber(process.env.BACKTEST_EXTRA_TRANSFERS_SOL_ENTRY, 0);
+	const extraTransfersExitSol = asNumber(process.env.BACKTEST_EXTRA_TRANSFERS_SOL_EXIT, 0);
+
+	// Atajo opcional: agregados simples para no usar las 4 de arriba
+	const extraSolEntryAgg = process.env.BACKTEST_EXTRA_SOL_ENTRY;
+	const extraSolExitAgg = process.env.BACKTEST_EXTRA_SOL_EXIT;
+	const aggEntry = extraSolEntryAgg != null && extraSolEntryAgg !== "" ? asNumber(extraSolEntryAgg, 0) : null;
+	const aggExit = extraSolExitAgg != null && extraSolExitAgg !== "" ? asNumber(extraSolExitAgg, 0) : null;
 	const entryFixedFeesSol = asNumber(process.env.BACKTEST_ENTRY_FIXED_FEES_SOL, 0.0025 + 0.0021 + 0.000905); // SOL por entrada
 	const exitFixedFeesSol = asNumber(process.env.BACKTEST_EXIT_FIXED_FEES_SOL, 0.0025 + 0.0021 + 0.000905); // SOL por salida
 	const limit = parseInt(process.env.BACKTEST_LIMIT || "0", 10) || 0;
@@ -130,6 +146,7 @@ async function main() {
 			`Timeout (s): ${timeoutSec}`,
 			`Fee %: ${feePct}`,
 			`Slippage %: ${slippagePct}`,
+			`Portal API: ${apiType}`,
 			`Portal fee % (lado): ${portalFeePct}`,
 			`Fixed fees SOL in/out: ${entryFixedFeesSol}/${exitFixedFeesSol}`,
 			`Límite sesiones: ${limit}`,
@@ -258,19 +275,42 @@ async function main() {
 		const roundTripPctCosts = (feePct + slippagePct + portalFeePct) * 2;
 		const netPct = exitPct - roundTripPctCosts;
 		const fixedFeesSolRoundTrip = entryFixedFeesSol + exitFixedFeesSol;
-		const pnl = alloc * (netPct / 100) - fixedFeesSolRoundTrip;
+		const priorityFeesSolRoundTrip = (aggEntry ?? priorityFeeEntrySol) - (aggEntry != null ? 0 : 0) + (aggExit ?? priorityFeeExitSol) - (aggExit != null ? 0 : 0);
+		const extraTransfersSolRoundTrip = (aggEntry != null ? 0 : extraTransfersEntrySol) + (aggExit != null ? 0 : extraTransfersExitSol);
+		// Si se usa agregado, se reparte en priority para informes y se ignoran extraTransfers correspondientes
+		const effPriorityFeeEntrySol = aggEntry != null ? aggEntry : priorityFeeEntrySol;
+		const effPriorityFeeExitSol = aggExit != null ? aggExit : priorityFeeExitSol;
+		const totalFixedSol = fixedFeesSolRoundTrip + priorityFeesSolRoundTrip + extraTransfersSolRoundTrip;
+		const pnl = alloc * (netPct / 100) - totalFixedSol;
 		const walletBefore = wallet;
 		wallet = wallet + pnl;
 		equity.push(wallet);
-		if (netPct >= 0) wins++;
+
+		// Determine if the trade was actually profitable after all costs
+		const isProfit = pnl > 0;
+
+		if (isProfit) wins++;
 		else losses++;
+
+		// Adjust exit reason based on actual profitability
+		let finalExitReason = exitReason;
+		if (exitReason === "TP" && !isProfit) {
+			finalExitReason = "TP_LOSS"; // TP signal but actually lost money
+		} else if (exitReason === "SL" && isProfit) {
+			finalExitReason = "SL_WIN"; // SL signal but actually made money
+		} else if (exitReason === "TIMEOUT") {
+			finalExitReason = isProfit ? "TIMEOUT_WIN" : "TIMEOUT_LOSS";
+		} else if (exitReason === "END") {
+			finalExitReason = isProfit ? "END_WIN" : "END_LOSS";
+		}
 
 		trades.push({
 			strategyId,
 			token: s.token || "",
 			startedAt: s.startedAt || "",
 			endedAt: s.endedAt || "",
-			exitReason,
+			exitReason: finalExitReason,
+			originalExitReason: exitReason, // Keep the original for reference
 			exitPct,
 			tExit,
 			alloc,
@@ -284,6 +324,12 @@ async function main() {
 			entryFixedFeesSol,
 			exitFixedFeesSol,
 			fixedFeesSolRoundTrip,
+			priorityFeeEntrySol: effPriorityFeeEntrySol,
+			priorityFeeExitSol: effPriorityFeeExitSol,
+			priorityFeesSolRoundTrip,
+			extraTransfersEntrySol,
+			extraTransfersExitSol,
+			extraTransfersSolRoundTrip,
 			delaySec: usedDelaySec,
 		});
 
@@ -346,6 +392,7 @@ async function main() {
 			feePct,
 			slippagePct,
 			portalFeePct,
+			apiType,
 			entryFixedFeesSol,
 			exitFixedFeesSol,
 			limit,
@@ -381,6 +428,12 @@ async function main() {
 			"entryFixedFeesSol",
 			"exitFixedFeesSol",
 			"fixedFeesSolRoundTrip",
+			"priorityFeeEntrySol",
+			"priorityFeeExitSol",
+			"priorityFeesSolRoundTrip",
+			"extraTransfersEntrySol",
+			"extraTransfersExitSol",
+			"extraTransfersSolRoundTrip",
 			"pnl",
 			"walletBefore",
 			"walletAfter",
@@ -689,7 +742,8 @@ async function main() {
       font-size: 0.75rem;
       font-weight: 500;
       font-family: 'Monaco', 'Consolas', monospace;
-      user-select: all; -webkit-user-select: all; -moz-user-select: all;
+      white-space: nowrap;
+      cursor: pointer;
     }
 
     .exit-badge {
@@ -701,6 +755,12 @@ async function main() {
 
     .exit-badge.TP { background: rgba(135, 217, 108, 0.2); color: var(--success); }
     .exit-badge.SL { background: rgba(255, 102, 102, 0.2); color: var(--danger); }
+    .exit-badge.TP_LOSS { background: rgba(255, 102, 102, 0.2); color: var(--danger); }
+    .exit-badge.SL_WIN { background: rgba(135, 217, 108, 0.2); color: var(--success); }
+    .exit-badge.TIMEOUT_WIN { background: rgba(135, 217, 108, 0.2); color: var(--success); }
+    .exit-badge.TIMEOUT_LOSS { background: rgba(255, 102, 102, 0.2); color: var(--danger); }
+    .exit-badge.END_WIN { background: rgba(135, 217, 108, 0.2); color: var(--success); }
+    .exit-badge.END_LOSS { background: rgba(255, 102, 102, 0.2); color: var(--danger); }
     .exit-badge.TIMEOUT { background: rgba(242, 158, 116, 0.2); color: var(--warning); }
     .exit-badge.END { background: rgba(255, 204, 102, 0.2); color: var(--accent-primary); }
 
@@ -817,12 +877,28 @@ async function main() {
         ${Object.entries(summary.exitReasons)
 			.map(([reason, count]) => {
 				const reasonLabels = {
-					TP: "Take Profit",
-					SL: "Stop Loss",
+					TP: "Take Profit (Win)",
+					SL: "Stop Loss (Loss)",
+					TP_LOSS: "Take Profit (Loss)",
+					SL_WIN: "Stop Loss (Win)",
+					TIMEOUT_WIN: "Timeout (Win)",
+					TIMEOUT_LOSS: "Timeout (Loss)",
+					END_WIN: "Session End (Win)",
+					END_LOSS: "Session End (Loss)",
+					// Legacy support for old format
 					TIMEOUT: "Timeout",
 					END: "Session End",
 				};
-				const reasonClass = reason.toLowerCase();
+				// Determine CSS class based on reason
+				let reasonClass = "end"; // default
+				if (reason === "TP" || reason === "TIMEOUT_WIN" || reason === "END_WIN" || reason === "SL_WIN") {
+					reasonClass = "tp"; // green for wins
+				} else if (reason === "SL" || reason === "TIMEOUT_LOSS" || reason === "END_LOSS" || reason === "TP_LOSS") {
+					reasonClass = "sl"; // red for losses
+				} else if (reason === "TIMEOUT") {
+					reasonClass = "timeout"; // purple for legacy timeout
+				}
+
 				return `<div class="exit-reason">
             <div class="exit-reason-count ${reasonClass}">${count}</div>
             <div class="exit-reason-label">${reasonLabels[reason] || reason}</div>
@@ -831,7 +907,11 @@ async function main() {
 			.join("")}
       </div>
       <div class="exit-explanation">
-        <p><strong>END</strong> means the tracking session ended naturally without hitting any exit condition (TP, SL, or timeout).</p>
+        <p><strong>New Exit Classification:</strong> Exit reasons now reflect actual profitability after fees. 
+        <strong>TP (Win)</strong> = Take profit signal that was actually profitable. 
+        <strong>TP (Loss)</strong> = Take profit signal that lost money due to fees/slippage.
+        <strong>SL (Win)</strong> = Stop loss signal that somehow ended profitable.
+        <strong>Timeout/End (Win/Loss)</strong> = Session timeouts or natural endings classified by final profitability.</p>
       </div>
     </div>
 
@@ -868,7 +948,7 @@ async function main() {
         </div>
         <div class="metric-card neutral">
           <div class="metric-label">Portal Fee (lado)</div>
-          <div class="metric-value">${portalFeePct}%</div>
+          <div class="metric-value">${portalFeePct}% <span style="color:var(--text-muted);font-size:0.85em">(${apiType})</span></div>
         </div>
         <div class="metric-card neutral">
           <div class="metric-label">Fixed Fees (SOL)</div>
@@ -903,11 +983,18 @@ async function main() {
 					const reasonLabels = {
 						TP: "Take Profit",
 						SL: "Stop Loss",
+						TP_LOSS: "TP (Loss)",
+						SL_WIN: "SL (Win)",
+						TIMEOUT_WIN: "Timeout (Win)",
+						TIMEOUT_LOSS: "Timeout (Loss)",
+						END_WIN: "End (Win)",
+						END_LOSS: "End (Loss)",
+						// Legacy support
 						TIMEOUT: "Timeout",
 						END: "Session End",
 					};
 					return `<tr>
-                <td><span class="token-tag">${esc(t.token)}</span></td>
+                <td><span class="token-tag" data-token="${esc(t.token)}" data-display="${esc((t.token || "").length > 10 ? t.token.slice(0, 4) + "..." + t.token.slice(-6) : t.token)}" title="${esc(t.token)}">${esc((t.token || "").length > 10 ? t.token.slice(0, 4) + "..." + t.token.slice(-6) : t.token)}</span></td>
                 <td><span class="exit-badge ${t.exitReason}">${reasonLabels[t.exitReason] || esc(t.exitReason)}</span></td>
                 <td>${t.tExit}</td>
                 <td><span class="percentage ${exitPctClass}">${toFixed(t.exitPct, 2)}%</span></td>
@@ -930,6 +1017,37 @@ async function main() {
       <a href="summary.json">summary.json</a>
     </div>
   </div>
+  <script>
+    document.addEventListener('click', function(e){
+      const tag = e.target.closest('.token-tag');
+      if(!tag) return;
+      const token = tag.getAttribute('data-token');
+      const display = tag.getAttribute('data-display') || tag.textContent;
+      if(!token) return;
+      const onDone = () => {
+        const old = tag.textContent;
+        tag.textContent = 'Copied!';
+        setTimeout(()=>{ tag.textContent = display; }, 800);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(token).then(onDone).catch(()=>{
+          try {
+            const ta = document.createElement('textarea');
+            ta.value = token; document.body.appendChild(ta); ta.select();
+            document.execCommand('copy'); document.body.removeChild(ta);
+          } catch {}
+          onDone();
+        });
+      } else {
+        try {
+          const ta = document.createElement('textarea');
+          ta.value = token; document.body.appendChild(ta); ta.select();
+          document.execCommand('copy'); document.body.removeChild(ta);
+        } catch {}
+        onDone();
+      }
+    });
+  </script>
 </body>
 </html>`;
 	fs.writeFileSync(path.join(OUTPUT_DIR, "report.html"), html, "utf8");
@@ -943,7 +1061,9 @@ async function main() {
 		);
 		try {
 			console.log(`[Wallet] Razones de salida: ${JSON.stringify(summary.exitReasons)}`);
-		} catch {}
+		} catch (error) {
+			// Ignore JSON serialization errors
+		}
 	}
 	console.log(`Salida: ${OUTPUT_DIR}/trades.csv, summary.json, report.html`);
 }

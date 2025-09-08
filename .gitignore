@@ -18,6 +18,9 @@ yarn-error.log*
 # But keep .gitkeep in logs directory
 !logs/.gitkeep
 
+# pumpportal-test-results
+pumpportal-test-results/
+
 # jsonl files
 *.jsonl
 

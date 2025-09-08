@@ -291,8 +291,12 @@ pumpportal-ws-analyze/
     - Variables útiles: `BT_LIMIT`, `BT_OBJECTIVE`, `BT_MIN_PRECISION`, `BT_MIN_COVERAGE`, `BT_WORKERS` (0 = auto), `BT_TOPK`.
 - `npm run analyze:wallet`: simulación de cartera por estrategia (TP/SL/Timeout).
     - Variables principales: `BACKTEST_STRATEGY_ID`, `BACKTEST_INITIAL_SOL`, `BACKTEST_ALLOC_SOL` o `BACKTEST_ALLOC_PCT`, `BACKTEST_TP_PCT`, `BACKTEST_SL_PCT`, `BACKTEST_TIMEOUT_SEC`, `BACKTEST_LIMIT`, `BACKTEST_PARSE_CONCURRENCY`.
-    - Costes porcentuales por lado (ida y vuelta): `BACKTEST_FEE_PCT`, `BACKTEST_SLIPPAGE_PCT`, `BACKTEST_PORTAL_FEE_PCT` (Lightning fee por lado, p.ej. 1%).
-    - Costes fijos en SOL (ida y vuelta): `BACKTEST_ENTRY_FIXED_FEES_SOL`, `BACKTEST_EXIT_FIXED_FEES_SOL` (por defecto 0.0025 + 0.0021 + 0.000905 por lado).
+    - Costes porcentuales por lado (ida y vuelta): `BACKTEST_FEE_PCT`, `BACKTEST_SLIPPAGE_PCT`, `BACKTEST_PORTAL_FEE_PCT`.
+        - `BACKTEST_API_TYPE`: `lightning` (por defecto) aplica 1.0% por trade; `local` aplica 0.5% por trade. Puedes sobrescribir con `BACKTEST_PORTAL_FEE_PCT`.
+    - Costes fijos en SOL (ida y vuelta): `BACKTEST_ENTRY_FIXED_FEES_SOL`, `BACKTEST_EXIT_FIXED_FEES_SOL`.
+    - Extra en SOL (modo sencillo): `BACKTEST_EXTRA_SOL_ENTRY`, `BACKTEST_EXTRA_SOL_EXIT` (agregan priority fee + transfers).
+        - Ejemplo real: compra = 0.000905 + 0.0025 + 0.0021 → `BACKTEST_EXTRA_SOL_ENTRY=0.005505`; venta = 0.005005 + 0.002357217 + 0.005 → `BACKTEST_EXTRA_SOL_EXIT=0.012362217`.
+    - (Avanzado) Desglose del extra: `BACKTEST_PRIORITY_FEE_SOL_ENTRY/EXIT` y `BACKTEST_EXTRA_TRANSFERS_SOL_ENTRY/EXIT`.
     - Salida personalizada: `BACKTEST_OUTPUT_DIR` (por defecto `backtest-output/wallet`).
 - `npm run analyze:wallet:all`: ejecuta el wallet backtest para todas las estrategias en `strategies.json` en paralelo y crea un índice HTML.
     - Concurrencia: `BACKTEST_ALL_CONCURRENCY` (o primer argumento CLI). Ej.: `BACKTEST_ALL_CONCURRENCY=4 npm run analyze:wallet:all` o `node scripts/analysis/backtest/wallet-backtest-all.js 4`.
@@ -367,3 +371,16 @@ Este proyecto está bajo la Licencia MIT. Ver el archivo `LICENSE` para más det
 ## ⚠️ Descargo de Responsabilidad
 
 Esta aplicación es para fines educativos e informativos. No constituye asesoramiento financiero. El trading de criptomonedas implica riesgos significativos y puede resultar en pérdidas financieras.
+Minimal para correr un wallet backtest:
+
+```
+BACKTEST_STRATEGY_ID=highPrecision
+BACKTEST_INITIAL_SOL=1.5
+BACKTEST_ALLOC_SOL=1.0          # o BACKTEST_ALLOC_PCT=0.25
+BACKTEST_TP_PCT=20
+BACKTEST_SL_PCT=36
+BACKTEST_TIMEOUT_SEC=300
+BACKTEST_API_TYPE=lightning     # o local
+BACKTEST_EXTRA_SOL_ENTRY=0.005505
+BACKTEST_EXTRA_SOL_EXIT=0.012362217
+```
