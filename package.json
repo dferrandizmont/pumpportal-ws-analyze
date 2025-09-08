@@ -12,6 +12,7 @@
 		"analyze:good": "node scripts/analysis/analyze-good-predictors.js",
 		"analyze:backtest": "node scripts/analysis/backtest/backtest-strategies.js",
 		"analyze:wallet": "node scripts/analysis/backtest/wallet-backtest.js",
+		"analyze:wallet:all": "node scripts/analysis/backtest/wallet-backtest-all.js",
 		"analyze:strategies": "node scripts/analysis/analyze-strategies.js",
 		"test": "echo \"No tests specified\" && exit 0",
 		"lint": "eslint . --ext .js",

@@ -34,10 +34,7 @@ export default [
 			import: importPlugin,
 		},
 		rules: {
-			"no-unused-vars": [
-				"warn",
-				{ argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none", caughtErrorsIgnorePattern: "^_" }
-			],
+			"no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrors: "none", caughtErrorsIgnorePattern: "^_" }],
 			"import/no-unresolved": "off",
 		},
 	},

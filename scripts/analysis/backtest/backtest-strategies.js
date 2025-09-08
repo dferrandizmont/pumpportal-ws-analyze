@@ -174,9 +174,7 @@ async function main() {
 	console.log(
 		`[Backtest] Opciones: outcomesDir='${outcomesDir}', trackingDirRoot='${trackingDirRoot}', outputDir='${outputDir}', LIMIT=${LIMIT || "0"}, OBJECTIVE='${OBJECTIVE}', MIN_PREC=${MIN_PREC}, MIN_COVER=${MIN_COVER}`
 	);
-	console.log(
-		`[Backtest] Dataset: total=${records.length}, good=${countGood}, bad=${countBad}, neutral=${countNeutral}`
-	);
+	console.log(`[Backtest] Dataset: total=${records.length}, good=${countGood}, bad=${countBad}, neutral=${countNeutral}`);
 
 	// Build multi-worker evaluation
 	const earlyIndex = await buildEarlyMetricsIndex(records);
@@ -241,9 +239,7 @@ async function main() {
 	const chunkSize = Math.ceil(stage1All.length / WORKERS);
 
 	const totalCombos = stage1All.length * stage2All.length;
-	console.log(
-		`[Backtest] Reglas: stage1=${stage1All.length}, stage2=${stage2All.length}, combos=${totalCombos.toLocaleString('es-ES')}, workers=${WORKERS}`
-	);
+	console.log(`[Backtest] Reglas: stage1=${stage1All.length}, stage2=${stage2All.length}, combos=${totalCombos.toLocaleString("es-ES")}, workers=${WORKERS}`);
 
 	// Simple progress bar
 	let processed = 0;
@@ -267,7 +263,7 @@ async function main() {
 			if (s >= 60) return `${Math.round(s / 60)}m`;
 			return `${Math.round(s)}s`;
 		};
-		const line = `[${bar}] ${pct}%  ${processed.toLocaleString('es-ES')}/${totalCombos.toLocaleString('es-ES')}  ~${rate.toFixed(0)} ops/s  ETA ${fmt(etaSec)}`;
+		const line = `[${bar}] ${pct}%  ${processed.toLocaleString("es-ES")}/${totalCombos.toLocaleString("es-ES")}  ~${rate.toFixed(0)} ops/s  ETA ${fmt(etaSec)}`;
 		process.stdout.write("\r" + line);
 	}
 

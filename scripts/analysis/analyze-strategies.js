@@ -212,18 +212,279 @@ function makeEnvFromFilters(f) {
 
 function buildHtml({ baseline, _totalMarked, _totalGoodMarked, rows, strategiesCfg }) {
 	const css = `
-  :root { --bg:#eceff4; --panel:#fff; --panel-alt:#fff; --border:#d8dee9; --text:#2e3440; --muted:#4c566a; --heading:#2e3440; --code-bg:#e5e9f0; --accent:#5e81ac; --badge-bg:#e5e9f0; }
-  :root[data-theme='dark'] { --bg:#1e1e2e; --panel:#181825; --panel-alt:#11111b; --border:#313244; --text:#cdd6f4; --muted:#a6adc8; --heading:#cdd6f4; --code-bg:#313244; --accent:#89b4fa; --badge-bg:#313244; }
-  *{box-sizing:border-box} body{font-family:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;margin:0;color:var(--text);background:var(--bg);} .container{width:100%;max-width:100%;padding:16px}
-  header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:16px} h1{margin:0;font-size:24px;color:var(--heading)} .toolbar{display:flex;gap:12px;align-items:center}
-  .badge{border:1px solid var(--border);padding:6px 10px;border-radius:999px;background:var(--panel);color:var(--text)}
-  .card{border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:var(--panel);margin-bottom:10px}
-  .grid{display:grid;grid-template-columns:1fr;gap:12px} @media(min-width:1100px){.grid{grid-template-columns:1fr 1fr 1fr}}
-  .cond-badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px} .cond{border:1px dashed var(--border);padding:6px 10px;border-radius:10px;background:var(--badge-bg)}
-  .copy-btn{margin-top:6px;border:1px solid var(--border);background:var(--panel);color:var(--text);padding:6px 10px;border-radius:8px;cursor:pointer}
-  .copy-btn:hover{background:var(--badge-bg)}
-  table{border-collapse:separate;border-spacing:0;width:100%;border:1px solid var(--border);border-radius:12px;overflow:hidden}
-  th,td{padding:8px 10px;text-align:right} thead th{background:var(--badge-bg)} td.label,th.label{text-align:left}
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap');
+  
+  :root {
+    /* Ayu Mirage Theme Palette */
+    --bg-primary: #1f2430;        /* Ayu Mirage Primary Background */
+    --bg-secondary: #1c212b;      /* Ayu Mirage Secondary Background */
+    --bg-tertiary: #242936;       /* Ayu Mirage Tertiary Background */
+    --bg-surface: #171b24;        /* Ayu Mirage Surface */
+    --bg-card: #1c212b;
+    --bg-card-hover: #242936;
+    --text-primary: #cccac2;      /* Ayu Mirage Primary Text */
+    --text-secondary: #707a8c;    /* Ayu Mirage Secondary Text */
+    --text-muted: #b8cfe6;        /* Ayu Mirage Muted Text - More visible */
+    --accent-primary: #ebcb8b;    /* Ayu Mirage Yellow (Principal) */
+    --accent-secondary: #73d0ff;  /* Ayu Mirage Blue */
+    --success: #a3be8c;           /* Ayu Mirage Green */
+    --success-soft: #a3be8c;
+    --danger: #bf616a;            /* Ayu Mirage Red */
+    --danger-soft: #bf616a;
+    --warning: #d08770;           /* Ayu Mirage Orange */
+    --warning-soft: #d0877080;
+    --info: #5ccfe6;              /* Ayu Mirage Cyan */
+    --cyan: #95e6cb;              /* Ayu Mirage Cyan Light */
+    --purple: #dfbfff;            /* Ayu Mirage Purple */
+    --border: #63759926;          /* Ayu Mirage Border */
+    --border-soft: #707a8c45;     /* Ayu Mirage Soft Border */
+    --shadow: 0 4px 6px -1px rgba(18, 21, 28, 0.6), 0 2px 4px -1px rgba(18, 21, 28, 0.4);
+    --shadow-lg: 0 10px 15px -3px rgba(18, 21, 28, 0.7), 0 4px 6px -2px rgba(18, 21, 28, 0.5);
+
+  }
+
+  * { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+  }
+  
+  body {
+    font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+    min-height: 100vh;
+  }
+  
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 2rem;
+    padding: 2rem;
+    background: var(--bg-card);
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg);
+    position: relative;
+    overflow: hidden;
+  }
+
+  header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: var(--accent-primary);
+  }
+  
+  h1 {
+    margin: 0;
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--accent-primary);
+  }
+  
+  .toolbar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+  
+  .badge {
+    border: 1px solid var(--accent-primary);
+    padding: 0.5rem 1.5rem;
+    border-radius: 50px;
+    background: rgba(235, 203, 139, 0.2);
+    color: var(--accent-primary);
+    font-weight: 500;
+    font-size: 0.9rem;
+  }
+  
+  .card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    background: var(--bg-card);
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow);
+    transition: all 0.3s ease;
+  }
+
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+    background: var(--bg-card-hover);
+  }
+
+  .card h3 {
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+  }
+
+  .card.muted {
+    background: var(--bg-secondary);
+    border-color: var(--border-soft);
+    color: var(--text-secondary);
+  }
+  
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  @media(min-width: 1100px) {
+    .grid {
+      grid-template-columns: repeat(3, 1fr);
+    }
+  }
+  
+  .cond-badges {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+  }
+  
+  .cond {
+    border: 1px dashed var(--border);
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    background: var(--bg-tertiary);
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+  
+  .copy-btn {
+    margin-top: 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+  
+  .copy-btn:hover {
+    background: var(--bg-tertiary);
+    border-color: var(--accent-secondary);
+    color: var(--accent-secondary);
+  }
+  
+  .table-wrap {
+    overflow-x: auto;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+  }
+  
+  table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--bg-secondary);
+  }
+  
+  th, td {
+    padding: 0.875rem 1rem;
+    text-align: right;
+    font-size: 0.875rem;
+    border-bottom: 1px solid var(--border);
+  }
+  
+  thead th {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--border);
+  }
+
+  tbody tr {
+    transition: background-color 0.2s ease;
+  }
+
+  tbody tr:hover {
+    background: rgba(235, 203, 139, 0.1);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+  
+  td.label, th.label {
+    text-align: left;
+    font-weight: 600;
+  }
+
+  code {
+    display: block;
+    white-space: pre;
+    margin-top: 0.75rem;
+    padding: 1rem;
+    background: var(--bg-surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    line-height: 1.4;
+  }
+
+  .small {
+    margin-top: 1rem;
+  }
+
+  .small > div {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+  }
+
+  @media (max-width: 768px) {
+    .container { 
+      padding: 1rem; 
+    }
+    
+    header {
+      flex-direction: column;
+      gap: 1rem;
+      text-align: center;
+    }
+    
+    h1 { 
+      font-size: 2rem; 
+    }
+    
+    .grid {
+      grid-template-columns: 1fr;
+    }
+    
+    th, td { 
+      padding: 0.5rem; 
+      font-size: 0.8rem; 
+    }
+  }
   `;
 
 	function renderTable() {
@@ -245,11 +506,11 @@ function buildHtml({ baseline, _totalMarked, _totalGoodMarked, rows, strategiesC
       </tr>`
 			)
 			.join("");
-		return `<div class="card"><h3>Métricas por estrategia</h3><div class="table-wrap"><table>${header}${body}</table></div></div>`;
+		return `<div class="card"><h3>Strategy Metrics</h3><div class="table-wrap"><table>${header}${body}</table></div></div>`;
 	}
 
 	function renderCards() {
-		if (!Array.isArray(strategiesCfg) || strategiesCfg.length === 0) return '<div class="card muted">No se encontró strategies.json</div>';
+		if (!Array.isArray(strategiesCfg) || strategiesCfg.length === 0) return '<div class="card muted">No strategies.json found</div>';
 		const idsWithData = new Set(rows.map((r) => r.strategyId));
 		const items = strategiesCfg
 			.map((s) => {
@@ -283,12 +544,12 @@ function buildHtml({ baseline, _totalMarked, _totalGoodMarked, rows, strategiesC
 					.join("");
 				return `
         <div class="card">
-          <h3>${htmlesc(id)} ${!idsWithData.has(id) ? '<span class="badge">sin datos aún</span>' : ""} ${trackingDir ? '<span class="badge">logs: ' + fmtNum(logsCount, 0) + "</span>" : ""}</h3>
+          <h3>${htmlesc(id)} ${!idsWithData.has(id) ? '<span class="badge">no data yet</span>' : ""} ${trackingDir ? '<span class="badge">logs: ' + fmtNum(logsCount, 0) + "</span>" : ""}</h3>
           <div class="cond-badges">${chips || ""}</div>
           <div class="small" style="margin-top:10px;">
-            <div>Snippet .env (copiar/pegar):</div>
+            <div>.env snippet (copy/paste):</div>
             <code id="env-${htmlesc(id)}" style="display:block; white-space:pre; margin-top:6px;">${htmlesc(env)}</code>
-            <button class="copy-btn" data-target="env-${htmlesc(id)}">Copiar</button>
+            <button class="copy-btn" data-target="env-${htmlesc(id)}">Copy</button>
           </div>
         </div>`;
 			})
@@ -296,16 +557,15 @@ function buildHtml({ baseline, _totalMarked, _totalGoodMarked, rows, strategiesC
 		return `<div class="grid">${items}</div>`;
 	}
 
-	return `<!doctype html><html lang="es"><head>
+	return `<!doctype html><html lang="en"><head>
     <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-    <title>Resumen por Estrategia</title>
+    <title>Strategy Analysis Report</title>
     <style>${css}</style>
   </head><body><div class="container">
-    <header><h1>Resumen por Estrategia</h1><div class="toolbar"><span class="badge">Baseline: ${fmtPct(baseline)}</span>
-      <button class="copy-btn" id="themeToggle">Tema: <span id="themeLabel">Claro</span></button></div></header>
+    <header><h1>Strategy Analysis Report</h1><div class="toolbar"><span class="badge">Baseline: ${fmtPct(baseline)}</span></div></header>
     ${renderTable()}
-    <div class="card"><h3>Snippets .env por estrategia (Etapa 1)</h3>${renderCards()}</div>
+    <div class="card"><h3>Environment Snippets by Strategy (Stage 1)</h3>${renderCards()}</div>
   </div>
-  <script>(function(){const r=document.documentElement,b=document.getElementById('themeToggle'),l=document.getElementById('themeLabel');function a(t){if(t==='dark'){r.setAttribute('data-theme','dark');l.textContent='Oscuro';}else{r.removeAttribute('data-theme');l.textContent='Claro';}localStorage.setItem('stTheme',t);}a(localStorage.getItem('stTheme')||'light');b.addEventListener('click',()=>{const c=r.getAttribute('data-theme')==='dark'?'dark':'light';a(c==='dark'?'light':'dark');});})();(function(){document.querySelectorAll('.copy-btn[data-target]').forEach(btn=>{btn.addEventListener('click',async()=>{const id=btn.getAttribute('data-target');const code=document.getElementById(id);if(!code)return;try{await navigator.clipboard.writeText(code.innerText);const o=btn.textContent;btn.textContent='Copiado!';setTimeout(()=>btn.textContent=o,1500);}catch(e){console.error('Copy failed',e);}});});})();</script>
+  <script>(function(){document.querySelectorAll('.copy-btn[data-target]').forEach(btn=>{btn.addEventListener('click',async()=>{const id=btn.getAttribute('data-target');const code=document.getElementById(id);if(!code)return;try{await navigator.clipboard.writeText(code.innerText);const o=btn.textContent;btn.textContent='Copied!';setTimeout(()=>btn.textContent=o,1500);}catch(e){console.error('Copy failed',e);}});});})();</script>
   </body></html>`;
 }

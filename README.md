@@ -290,7 +290,20 @@ pumpportal-ws-analyze/
 - `npm run analyze:backtest`: backtest Etapa 1 + 2 (multi‑worker). Genera `backtest-output/*.csv|json|html`.
     - Variables útiles: `BT_LIMIT`, `BT_OBJECTIVE`, `BT_MIN_PRECISION`, `BT_MIN_COVERAGE`, `BT_WORKERS` (0 = auto), `BT_TOPK`.
 - `npm run analyze:wallet`: simulación de cartera por estrategia (TP/SL/Timeout).
-    - Variables: `BACKTEST_STRATEGY_ID`, `BACKTEST_INITIAL_SOL`, `BACKTEST_ALLOC_SOL` o `BACKTEST_ALLOC_PCT`, `BACKTEST_TP_PCT`, `BACKTEST_SL_PCT`, `BACKTEST_TIMEOUT_SEC`, `BACKTEST_FEE_PCT`, `BACKTEST_SLIPPAGE_PCT`, `BACKTEST_LIMIT`, `BACKTEST_PARSE_CONCURRENCY`.
+    - Variables principales: `BACKTEST_STRATEGY_ID`, `BACKTEST_INITIAL_SOL`, `BACKTEST_ALLOC_SOL` o `BACKTEST_ALLOC_PCT`, `BACKTEST_TP_PCT`, `BACKTEST_SL_PCT`, `BACKTEST_TIMEOUT_SEC`, `BACKTEST_LIMIT`, `BACKTEST_PARSE_CONCURRENCY`.
+    - Costes porcentuales por lado (ida y vuelta): `BACKTEST_FEE_PCT`, `BACKTEST_SLIPPAGE_PCT`, `BACKTEST_PORTAL_FEE_PCT` (Lightning fee por lado, p.ej. 1%).
+    - Costes fijos en SOL (ida y vuelta): `BACKTEST_ENTRY_FIXED_FEES_SOL`, `BACKTEST_EXIT_FIXED_FEES_SOL` (por defecto 0.0025 + 0.0021 + 0.000905 por lado).
+    - Salida personalizada: `BACKTEST_OUTPUT_DIR` (por defecto `backtest-output/wallet`).
+- `npm run analyze:wallet:all`: ejecuta el wallet backtest para todas las estrategias en `strategies.json` en paralelo y crea un índice HTML.
+    - Concurrencia: `BACKTEST_ALL_CONCURRENCY` (o primer argumento CLI). Ej.: `BACKTEST_ALL_CONCURRENCY=4 npm run analyze:wallet:all` o `node scripts/analysis/backtest/wallet-backtest-all.js 4`.
+    - Limpieza previa por estrategia: `BACKTEST_ALL_CLEAN=1` borra la carpeta de salida de cada estrategia antes de ejecutarla.
+    - Índice generado: `backtest-output/wallet/index.html` con KPIs (Final, Trades, WinRate, Return, MaxDD) y enlaces a cada `report.html`.
+
+Detalles de simulación Wallet Backtest:
+
+- Salida por TP/SL con latencia realista: al tocar TP/SL se aplica un retraso aleatorio de 1–3s y se usa el porcentaje del primer punto ≥ tCross+delay (o el último si no hay punto posterior). Si hay timeout, se sale en el último punto sí o sí; si no, `END` con el último punto.
+- PnL por trade: `PnL = alloc * ((exitPct - (feePct + slippagePct + portalFeePct) * 2) / 100) - (entryFixedFeesSol + exitFixedFeesSol)`.
+- CSV incluye columnas para auditar: `delaySec`, `portalFeePct`, `entryFixedFeesSol`, `exitFixedFeesSol`, `fixedFeesSolRoundTrip`.
 
 Notas:
 
