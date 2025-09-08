@@ -53,7 +53,7 @@
 		"name": "High Buy Ratio",
 		"description": "Focus on tokens with very high buy ratio early.",
 		"trackingFilters": {
-			"enabled": true,
+			"enabled": false,
 			"trackAllMints": false,
 			"minBuys": 5,
 			"minTotalTrades": 15,
@@ -74,7 +74,7 @@
 		"name": "Young Only",
 		"description": "Young tokens only (age-capped), medium precision filters.",
 		"trackingFilters": {
-			"enabled": true,
+			"enabled": false,
 			"trackAllMints": false,
 			"minBuys": 5,
 			"minTotalTrades": 8,
@@ -116,7 +116,7 @@
 		"name": "Density High",
 		"description": "High participation density across metrics.",
 		"trackingFilters": {
-			"enabled": true,
+			"enabled": false,
 			"trackAllMints": false,
 			"minBuys": 8,
 			"minTotalTrades": 12,
@@ -137,7 +137,7 @@
 		"name": "Density Light",
 		"description": "Lighter density thresholds for broader coverage.",
 		"trackingFilters": {
-			"enabled": true,
+			"enabled": false,
 			"trackAllMints": false,
 			"minBuys": 5,
 			"minTotalTrades": 8,
@@ -158,7 +158,7 @@
 		"name": "High Precision (Fast)",
 		"description": "High precision with earlier entries and slightly higher density.",
 		"trackingFilters": {
-			"enabled": true,
+			"enabled": false,
 			"trackAllMints": false,
 			"minBuys": 5,
 			"minTotalTrades": 15,
@@ -179,7 +179,7 @@
 		"name": "High Precision (Tight)",
 		"description": "Stricter thresholds to maximize precision and reduce drawdown.",
 		"trackingFilters": {
-			"enabled": true,
+			"enabled": false,
 			"trackAllMints": false,
 			"minBuys": 6,
 			"minTotalTrades": 15,
@@ -200,7 +200,7 @@
 		"name": "Flow Strong",
 		"description": "Strong net-buy flow and participation momentum.",
 		"trackingFilters": {
-			"enabled": true,
+			"enabled": false,
 			"trackAllMints": false,
 			"minBuys": 8,
 			"minTotalTrades": 12,
@@ -221,7 +221,7 @@
 		"name": "Young Momentum",
 		"description": "Very young tokens with early momentum and quality filters.",
 		"trackingFilters": {
-			"enabled": true,
+			"enabled": false,
 			"trackAllMints": false,
 			"minBuys": 6,
 			"minTotalTrades": 15,
@@ -242,7 +242,7 @@
 		"name": "Low-Cap Strict",
 		"description": "Strict filters for low-cap tokens to reduce noise/wash.",
 		"trackingFilters": {
-			"enabled": true,
+			"enabled": false,
 			"trackAllMints": false,
 			"minBuys": 8,
 			"minTotalTrades": 12,
@@ -263,7 +263,7 @@
 		"name": "Mid-Cap Precision",
 		"description": "Mid-cap sweet spot: liquidity with precision filters.",
 		"trackingFilters": {
-			"enabled": true,
+			"enabled": false,
 			"trackAllMints": false,
 			"minBuys": 7,
 			"minTotalTrades": 15,
@@ -284,7 +284,7 @@
 		"name": "Density Balanced",
 		"description": "Balanced density thresholds for wider but cleaner coverage.",
 		"trackingFilters": {
-			"enabled": true,
+			"enabled": false,
 			"trackAllMints": false,
 			"minBuys": 6,
 			"minTotalTrades": 10,
@@ -326,7 +326,7 @@
 		"name": "High Precision (Min MC)",
 		"description": "High precision targeting minimum MC range based on TP signals (6913-10000 USD).",
 		"trackingFilters": {
-			"enabled": true,
+			"enabled": false,
 			"trackAllMints": false,
 			"minBuys": 5,
 			"minTotalTrades": 15,
@@ -347,7 +347,7 @@
 		"name": "High Precision (Median MC)",
 		"description": "High precision targeting median MC range based on TP signals (9260-12000 USD).",
 		"trackingFilters": {
-			"enabled": true,
+			"enabled": false,
 			"trackAllMints": false,
 			"minBuys": 5,
 			"minTotalTrades": 15,
@@ -368,7 +368,7 @@
 		"name": "High Precision (Avg MC)",
 		"description": "High precision targeting average MC range based on TP signals (10165-15000 USD).",
 		"trackingFilters": {
-			"enabled": true,
+			"enabled": false,
 			"trackAllMints": false,
 			"minBuys": 5,
 			"minTotalTrades": 15,
@@ -389,7 +389,7 @@
 		"name": "High Precision (Max MC)",
 		"description": "High precision targeting maximum MC range based on TP signals (25000-39062 USD).",
 		"trackingFilters": {
-			"enabled": true,
+			"enabled": false,
 			"trackAllMints": false,
 			"minBuys": 5,
 			"minTotalTrades": 15,
