@@ -93,8 +93,8 @@ function buildIndexHtml(entries) {
     
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 20px;
       margin-top: 20px;
     }
     
@@ -102,9 +102,12 @@ function buildIndexHtml(entries) {
       background: var(--bg-secondary);
       border: 1px solid var(--border-solid);
       border-radius: 12px;
-      padding: 18px;
+      padding: 20px;
       transition: all 0.3s ease;
       box-shadow: var(--shadow);
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
     }
     
     .card:hover {
@@ -114,9 +117,11 @@ function buildIndexHtml(entries) {
     
     .top {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       margin-bottom: 12px;
+      gap: 16px;
+      flex-grow: 1;
     }
     
     .id {
@@ -130,17 +135,21 @@ function buildIndexHtml(entries) {
       font-size: 12px;
       margin-top: 2px;
     }
+    .desc { color: var(--text-secondary); font-size: 12px; margin-top: 6px; line-height: 1.4; }
     
     a {
       color: var(--accent-secondary);
       text-decoration: none;
       font-weight: 600;
       font-size: 13px;
-      padding: 6px 12px;
+      padding: 8px 16px;
       background: rgba(115, 208, 255, 0.1);
-      border-radius: 6px;
+      border-radius: 8px;
       border: 1px solid rgba(115, 208, 255, 0.3);
       transition: all 0.2s ease;
+      white-space: nowrap;
+      align-self: flex-start;
+      flex-shrink: 0;
     }
     
     a:hover {
@@ -157,8 +166,9 @@ function buildIndexHtml(entries) {
     .kpis {
       display: grid;
       grid-template-columns: repeat(2, 1fr);
-      gap: 8px;
-      margin-top: 12px;
+      gap: 10px;
+      margin-top: auto;
+      padding-top: 12px;
     }
     
     .kpi {
@@ -191,6 +201,24 @@ function buildIndexHtml(entries) {
     
     .pos { color: var(--success); }
     .neg { color: var(--danger); }
+    
+    @media (max-width: 768px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .card {
+        min-height: auto;
+      }
+      .top {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+      }
+      a {
+        align-self: center;
+        padding: 10px 20px;
+      }
+    }
   </style></head>
   <body><div class="wrap">
     <h1>Wallet Backtests by Strategy</h1>
@@ -208,7 +236,7 @@ function buildIndexHtml(entries) {
 				return (
 					`<div class="card">\n` +
 					`<div class="top">\n` +
-					`<div>\n<div class="id">${esc(e.id)}</div>\n<div class="name">${esc(e.name || "")}</div>\n</div>\n` +
+					`<div>\n<div class="id">${esc(e.id)}</div>\n<div class="name">${esc(e.name || "")}</div>\n<div class="desc">${esc(e.description || "")}</div>\n</div>\n` +
 					`<div><a href="${encodeURIComponent(e.id)}/report.html">Open Report</a></div>\n` +
 					`</div>\n` +
 					`<div class="kpis">\n` +
@@ -280,7 +308,7 @@ async function main() {
 			} catch {
 				// ignore
 			}
-			return { id: s.id, name: s.name || "", summary };
+			return { id: s.id, name: s.name || "", description: s.description || "", summary };
 		});
 	const indexHtml = buildIndexHtml(entries);
 	fs.writeFileSync(path.join(baseOut, "index.html"), indexHtml, "utf8");

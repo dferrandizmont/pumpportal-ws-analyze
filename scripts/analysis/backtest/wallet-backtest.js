@@ -154,6 +154,17 @@ async function main() {
 		].join(" | ")
 	);
 
+	// Fetch strategy description (if any)
+	let strategyDescription = "";
+	let strategyName = "";
+	try {
+		const meta = readStrategies().find((x) => x.id === strategyId);
+		strategyDescription = meta?.description || "";
+		strategyName = meta?.name || "";
+	} catch {
+		// ignore
+	}
+
 	const logDir = getStrategyLogDir(strategyId);
 	console.log(`Directorio de tracking: ${logDir}`);
 	const files = listTokenLogs(logDir);
@@ -507,6 +518,8 @@ async function main() {
       overflow: hidden;
     }
 
+    .strategy-desc { margin-top: .5rem; color: var(--text-secondary); font-size: .95rem; }
+
     .header::before {
       content: '';
       position: absolute;
@@ -806,7 +819,8 @@ async function main() {
   <div class="container">
     <div class="header">
       <h1>Wallet Backtest</h1>
-      <div class="strategy-badge">Strategy: ${esc(strategyId)}</div>
+      <div class="strategy-badge">Strategy: ${esc(strategyName || strategyId)}${strategyName ? ` (${esc(strategyId)})` : ""}</div>
+      ${strategyDescription ? `<div class="strategy-desc">${esc(strategyDescription)}</div>` : ""}
     </div>
 
     <div class="metrics-grid">
