@@ -149,6 +149,7 @@ async function main() {
 			`Portal API: ${apiType}`,
 			`Portal fee % (lado): ${portalFeePct}`,
 			`Fixed fees SOL in/out: ${entryFixedFeesSol}/${exitFixedFeesSol}`,
+			`Extra costs SOL in/out: ${aggEntry ?? 0}/${aggExit ?? 0}`,
 			`Límite sesiones: ${limit}`,
 			`Parse concurrency: ${conc}`,
 		].join(" | ")
@@ -406,6 +407,8 @@ async function main() {
 			apiType,
 			entryFixedFeesSol,
 			exitFixedFeesSol,
+			extraSolEntry: aggEntry ?? 0,
+			extraSolExit: aggExit ?? 0,
 			limit,
 		},
 	};
@@ -967,6 +970,14 @@ async function main() {
         <div class="metric-card neutral">
           <div class="metric-label">Fixed Fees (SOL)</div>
           <div class="metric-value">${entryFixedFeesSol} / ${exitFixedFeesSol}</div>
+        </div>
+        <div class="metric-card neutral">
+          <div class="metric-label">Extra Costs Entry (SOL)</div>
+          <div class="metric-value">${aggEntry ?? 0}</div>
+        </div>
+        <div class="metric-card neutral">
+          <div class="metric-label">Extra Costs Exit (SOL)</div>
+          <div class="metric-value">${aggExit ?? 0}</div>
         </div>
       </div>
     </div>
