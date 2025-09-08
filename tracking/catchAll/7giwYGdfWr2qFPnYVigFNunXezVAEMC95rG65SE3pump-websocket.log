@@ -1,0 +1,16 @@
+08-09-2025 02:02:13.190 INFO Entry price: 0.000000032786328323 - Entry market cap: 6711 - Buys 49 - Sells 81 - Ratio: 1:1.65 - Min MarketCap: 6011 - Max MarketCap: 11345
+08-09-2025 02:02:13.190 INFO Current price: 0.000000032786 - Current percentage: 0.00% - Max: 0.00% - Min: 0.00% - Market Cap 6711 - Trading time: 00:00:02
+08-09-2025 02:02:13.900 INFO Current price: 0.000000031985 - Current percentage: -2.45% - Max: 0.00% - Min: -2.45% - Market Cap 6547 - Trading time: 00:00:02
+08-09-2025 02:02:16.006 INFO Current price: 0.000000031402 - Current percentage: -4.29% - Max: 0.00% - Min: -4.29% - Market Cap 6423 - Trading time: 00:00:04
+08-09-2025 02:02:16.186 INFO Current price: 0.000000030399 - Current percentage: -8.58% - Max: 0.00% - Min: -8.58% - Market Cap 6136 - Trading time: 00:00:04
+08-09-2025 02:02:16.193 INFO Current price: 0.000000029335 - Current percentage: -10.88% - Max: 0.00% - Min: -10.88% - Market Cap 5981 - Trading time: 00:00:05
+08-09-2025 02:02:16.195 INFO Current price: 0.000000028592 - Current percentage: -13.15% - Max: 0.00% - Min: -13.15% - Market Cap 5829 - Trading time: 00:00:05
+08-09-2025 02:02:16.761 INFO Current price: 0.000000028216 - Current percentage: -13.20% - Max: 0.00% - Min: -13.20% - Market Cap 5825 - Trading time: 00:00:05
+08-09-2025 02:09:03.128 INFO Current price: 0.000000028086 - Current percentage: -14.15% - Max: 0.00% - Min: -14.15% - Market Cap 5762 - Trading time: 00:06:51
+
+
+
+
+
+
+08-09-2025 02:19:03.129 INFO {"type":"summary","reason":"inactivity","startedAt":"2025-09-08T00:02:11.189Z","endedAt":"2025-09-08T00:19:03.129Z","durationSec":1011,"entryPrice":3.278632832260161e-8,"entryMarketCapSol":32.498064445838914,"entryMarketCapUsd":6711.175288710194,"minPct":-14.145134276384388,"maxPct":0,"buyCount":0,"sellCount":9,"tradeCount":9,"entryRecorded":true,"noPostThresholdTrades":false,"triggerAt":"2025-09-08T00:02:11.189Z","ageAtTriggerSec":125,"preTotalTrades":128,"preBuys":49,"preSells":79,"preUniqueTraders":47,"preEntryTotalTrades":130,"preEntryBuys":49,"preEntrySells":81,"preEntryUniqueTraders":47,"preEntryMinMcUsd":6011.448294945019,"preEntryMaxMcUsd":11345.46623747452,"thresholdMcSol":32.498064445838914,"thresholdMcUsd":6711.175288710194,"thresholdPrice":3.278632832260161e-8}
