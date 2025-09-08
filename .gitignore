@@ -18,6 +18,9 @@ yarn-error.log*
 # But keep .gitkeep in logs directory
 !logs/.gitkeep
 
+# jsonl files
+*.jsonl
+
 # Runtime data
 pids
 *.pid

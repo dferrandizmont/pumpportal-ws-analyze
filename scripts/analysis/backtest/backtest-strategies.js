@@ -159,11 +159,25 @@ function toFixed(x, d = 4) {
 }
 
 async function main() {
+	const startTs = Date.now();
 	const records = await loadDataset();
 	if (!records.length) {
 		console.error("No hay datos en outcomes. Ejecuta split:summaries primero.");
 		process.exit(1);
 	}
+	// Console: starting info
+	const countGood = records.filter((r) => r.outcome === "good").length;
+	const countBad = records.filter((r) => r.outcome === "bad").length;
+	const countNeutral = records.filter((r) => r.outcome === "neutral").length;
+	console.log("[Backtest] Iniciando análisis de estrategias...");
+	console.log("starting backend analyze");
+	console.log(
+		`[Backtest] Opciones: outcomesDir='${outcomesDir}', trackingDirRoot='${trackingDirRoot}', outputDir='${outputDir}', LIMIT=${LIMIT || "0"}, OBJECTIVE='${OBJECTIVE}', MIN_PREC=${MIN_PREC}, MIN_COVER=${MIN_COVER}`
+	);
+	console.log(
+		`[Backtest] Dataset: total=${records.length}, good=${countGood}, bad=${countBad}, neutral=${countNeutral}`
+	);
+
 	// Build multi-worker evaluation
 	const earlyIndex = await buildEarlyMetricsIndex(records);
 	const earlyPlain = toPlainEarlyIndex(earlyIndex);
@@ -226,6 +240,37 @@ async function main() {
 	if (WORKERS <= 0) WORKERS = Math.max(1, (os.cpus()?.length || 2) - 1);
 	const chunkSize = Math.ceil(stage1All.length / WORKERS);
 
+	const totalCombos = stage1All.length * stage2All.length;
+	console.log(
+		`[Backtest] Reglas: stage1=${stage1All.length}, stage2=${stage2All.length}, combos=${totalCombos.toLocaleString('es-ES')}, workers=${WORKERS}`
+	);
+
+	// Simple progress bar
+	let processed = 0;
+	let lastDraw = 0;
+	function drawProgress(force = false) {
+		const now = Date.now();
+		if (!force && now - lastDraw < 200) return; // throttle a bit
+		lastDraw = now;
+		const ratio = totalCombos ? Math.min(1, processed / totalCombos) : 0;
+		const width = 40;
+		const filled = Math.round(ratio * width);
+		const bar = "#".repeat(filled) + "-".repeat(Math.max(0, width - filled));
+		const pct = (ratio * 100).toFixed(1).padStart(5);
+		const elapsed = (now - startTs) / 1000;
+		const rate = processed && elapsed > 0 ? processed / elapsed : 0; // combos/sec
+		const remaining = Math.max(0, totalCombos - processed);
+		const etaSec = rate > 0 ? remaining / rate : 0;
+		const fmt = (s) => {
+			if (!Number.isFinite(s)) return "?";
+			if (s >= 3600) return `${Math.round(s / 3600)}h`;
+			if (s >= 60) return `${Math.round(s / 60)}m`;
+			return `${Math.round(s)}s`;
+		};
+		const line = `[${bar}] ${pct}%  ${processed.toLocaleString('es-ES')}/${totalCombos.toLocaleString('es-ES')}  ~${rate.toFixed(0)} ops/s  ETA ${fmt(etaSec)}`;
+		process.stdout.write("\r" + line);
+	}
+
 	const topK = parseInt(process.env.BT_TOPK || "25", 10) || 25;
 	const topF1 = [];
 	const topPrecision = [];
@@ -253,6 +298,8 @@ async function main() {
 			});
 			worker.on("message", (msg) => {
 				if (msg?.type === "batch" && Array.isArray(msg.rows)) {
+					processed += msg.rows.length;
+					drawProgress();
 					for (const r of msg.rows) {
 						const row = [
 							r.minBuyRatio,
@@ -298,6 +345,9 @@ async function main() {
 			});
 		}
 	});
+	// Ensure progress bar completes and move to next line
+	drawProgress(true);
+	process.stdout.write("\n");
 	outCsv.end();
 
 	const pickTop = (arr, n = 25) =>
@@ -345,7 +395,8 @@ async function main() {
 	});
 	fs.writeFileSync(path.join(outputDir, "backtest-report.html"), html, "utf8");
 
-	console.log("Backtest completado (multi-worker).");
+	const totalSec = ((Date.now() - startTs) / 1000).toFixed(1);
+	console.log(`[Backtest] Completado en ${totalSec}s.`);
 	console.log(`Resultados: ${path.join(outputDir, "backtest_results.csv")}`);
 	console.log(`Top F1/Precision/Recall en JSON en ${outputDir}`);
 	if (recommended) console.log("Regla recomendada (" + OBJECTIVE + "):", recommended);
