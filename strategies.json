@@ -2,20 +2,20 @@
 	{
 		"id": "highPrecisionSweetSpot",
 		"name": "High Precision (Sweet Spot)",
-		"description": "Winner baseline: MC 8k–20k con filtros equilibrados.",
+		"description": "Core 8k–20k con anti-entradas tardías y algo más de unicidad.",
 		"trackingFilters": {
 			"enabled": true,
 			"trackAllMints": false,
 			"minBuys": 5,
 			"minTotalTrades": 12,
 			"minUniqueTraders": 10,
-			"minBuyRatio": 0.6,
+			"minBuyRatio": 0.62,
 			"minNetBuys": 2,
 			"minMcUsd": 8000,
 			"maxMcUsd": 20000,
-			"minUniquePerTrade": 0.65,
-			"minBuysPerUnique": 0,
-			"maxAgeAtTriggerSec": null,
+			"minUniquePerTrade": 0.68,
+			"minBuysPerUnique": 1.05,
+			"maxAgeAtTriggerSec": 1200,
 			"maxMcVolatilityRatio": 5
 		},
 		"tracking": {
@@ -23,20 +23,43 @@
 		}
 	},
 	{
+		"id": "sweetSpotAggressive",
+		"name": "Sweet Spot — Aggressive Early",
+		"description": "Entrada más temprana pero con un poco más de calidad para subir PF.",
+		"trackingFilters": {
+			"enabled": true,
+			"trackAllMints": false,
+			"minBuys": 5,
+			"minTotalTrades": 12,
+			"minUniqueTraders": 9,
+			"minBuyRatio": 0.6,
+			"minNetBuys": 3,
+			"minMcUsd": 8000,
+			"maxMcUsd": 20000,
+			"minUniquePerTrade": 0.64,
+			"minBuysPerUnique": 1.1,
+			"maxAgeAtTriggerSec": 540,
+			"maxMcVolatilityRatio": 4
+		},
+		"tracking": {
+			"logDir": "tracking/sweetSpotAggressive"
+		}
+	},
+	{
 		"id": "sweetSpotConservative",
 		"name": "Sweet Spot — Conservative",
-		"description": "Más estricta para reducir drawdown; dentro del rango ganador.",
+		"description": "Menos drawdown, más calidad; relajada un punto para ganar N.",
 		"trackingFilters": {
 			"enabled": true,
 			"trackAllMints": false,
 			"minBuys": 6,
 			"minTotalTrades": 15,
-			"minUniqueTraders": 14,
-			"minBuyRatio": 0.67,
+			"minUniqueTraders": 12,
+			"minBuyRatio": 0.64,
 			"minNetBuys": 3,
 			"minMcUsd": 9000,
-			"maxMcUsd": 18000,
-			"minUniquePerTrade": 0.7,
+			"maxMcUsd": 19000,
+			"minUniquePerTrade": 0.68,
 			"minBuysPerUnique": 1.2,
 			"maxAgeAtTriggerSec": 1200,
 			"maxMcVolatilityRatio": 3
@@ -46,44 +69,21 @@
 		}
 	},
 	{
-		"id": "sweetSpotAggressive",
-		"name": "Sweet Spot — Aggressive Early",
-		"description": "Entrada muy temprana en 8k–20k; más cobertura, algo más de riesgo.",
-		"trackingFilters": {
-			"enabled": true,
-			"trackAllMints": false,
-			"minBuys": 5,
-			"minTotalTrades": 10,
-			"minUniqueTraders": 8,
-			"minBuyRatio": 0.6,
-			"minNetBuys": 2,
-			"minMcUsd": 8000,
-			"maxMcUsd": 20000,
-			"minUniquePerTrade": 0.6,
-			"minBuysPerUnique": 1.0,
-			"maxAgeAtTriggerSec": 600,
-			"maxMcVolatilityRatio": 5
-		},
-		"tracking": {
-			"logDir": "tracking/sweetSpotAggressive"
-		}
-	},
-	{
 		"id": "sweetSpotAntiWash",
 		"name": "Sweet Spot — Anti-Wash",
-		"description": "Sesgo anti-wash subiendo unicidad y buys/unique; filtra ruido.",
+		"description": "Filtra wash trading sin quedarse seca.",
 		"trackingFilters": {
 			"enabled": true,
 			"trackAllMints": false,
 			"minBuys": 6,
 			"minTotalTrades": 12,
-			"minUniqueTraders": 12,
+			"minUniqueTraders": 11,
 			"minBuyRatio": 0.62,
 			"minNetBuys": 3,
 			"minMcUsd": 8000,
 			"maxMcUsd": 20000,
-			"minUniquePerTrade": 0.72,
-			"minBuysPerUnique": 1.3,
+			"minUniquePerTrade": 0.70,
+			"minBuysPerUnique": 1.20,
 			"maxAgeAtTriggerSec": 1800,
 			"maxMcVolatilityRatio": 3
 		},
@@ -94,19 +94,19 @@
 	{
 		"id": "sweetSpotLate",
 		"name": "Sweet Spot — Late Confirmation",
-		"description": "Confirma más tarde con ratios más altos; entradas menos frecuentes pero más sólidas.",
+		"description": "Confirma más tarde con ratios algo más suaves para aumentar señales.",
 		"trackingFilters": {
 			"enabled": true,
 			"trackAllMints": false,
-			"minBuys": 8,
-			"minTotalTrades": 18,
-			"minUniqueTraders": 14,
-			"minBuyRatio": 0.66,
+			"minBuys": 7,
+			"minTotalTrades": 16,
+			"minUniqueTraders": 12,
+			"minBuyRatio": 0.64,
 			"minNetBuys": 4,
 			"minMcUsd": 9000,
 			"maxMcUsd": 20000,
-			"minUniquePerTrade": 0.68,
-			"minBuysPerUnique": 1.2,
+			"minUniquePerTrade": 0.66,
+			"minBuysPerUnique": 1.10,
 			"maxAgeAtTriggerSec": 3600,
 			"maxMcVolatilityRatio": 4
 		},
@@ -116,20 +116,20 @@
 	},
 	{
 		"id": "sweetSpotMidband",
-		"name": "Sweet Spot — Midband (9k–12k)",
-		"description": "Foco en la banda central alrededor de la mediana/avg de TPs (~9.6–10.3k).",
+		"name": "Sweet Spot — Midband (9k–13.5k)",
+		"description": "Ensanchamos la banda central que mejor te está funcionando (PF alto).",
 		"trackingFilters": {
 			"enabled": true,
 			"trackAllMints": false,
 			"minBuys": 6,
 			"minTotalTrades": 12,
-			"minUniqueTraders": 11,
-			"minBuyRatio": 0.64,
+			"minUniqueTraders": 10,
+			"minBuyRatio": 0.63,
 			"minNetBuys": 3,
 			"minMcUsd": 9000,
-			"maxMcUsd": 12000,
-			"minUniquePerTrade": 0.68,
-			"minBuysPerUnique": 1.1,
+			"maxMcUsd": 13500,
+			"minUniquePerTrade": 0.66,
+			"minBuysPerUnique": 1.10,
 			"maxAgeAtTriggerSec": 1800,
 			"maxMcVolatilityRatio": 4
 		},
