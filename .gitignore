@@ -9,11 +9,14 @@ package-lock.json
 .env.production
 
 # Logs
-# logs/
-# *.log
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Tracking
+tracking/
 
 # But keep .gitkeep in logs directory
 !logs/.gitkeep
