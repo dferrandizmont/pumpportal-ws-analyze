@@ -1,414 +1,8 @@
 [
 	{
-		"id": "catchAll",
-		"name": "Catch All",
-		"description": "Tracks all mints without filters; baseline coverage.",
-		"trackingFilters": { "enabled": true, "trackAllMints": true },
-		"tracking": { "logDir": "tracking/catchAll" }
-	},
-	{
-		"id": "f1Balanced",
-		"name": "F1 Balanced",
-		"description": "Balanced thresholds to optimize F1 across precision and recall.",
-		"trackingFilters": {
-			"enabled": true,
-			"trackAllMints": false,
-			"minBuys": 5,
-			"minTotalTrades": 5,
-			"minUniqueTraders": 5,
-			"minBuyRatio": 0.55,
-			"minNetBuys": 2,
-			"minMcUsd": 1000,
-			"maxMcUsd": null,
-			"minUniquePerTrade": 0,
-			"minBuysPerUnique": 0,
-			"maxAgeAtTriggerSec": 3600,
-			"maxMcVolatilityRatio": 5
-		},
-		"tracking": { "logDir": "tracking/f1Balanced" }
-	},
-	{
-		"id": "highPrecision",
-		"name": "High Precision",
-		"description": "Stricter buyers/uniques ratios for higher precision.",
-		"trackingFilters": {
-			"enabled": true,
-			"trackAllMints": false,
-			"minBuys": 5,
-			"minTotalTrades": 15,
-			"minUniqueTraders": 12,
-			"minBuyRatio": 0.65,
-			"minNetBuys": 2,
-			"minMcUsd": 1000,
-			"maxMcUsd": null,
-			"minUniquePerTrade": 0.7,
-			"minBuysPerUnique": 0,
-			"maxAgeAtTriggerSec": null,
-			"maxMcVolatilityRatio": 5
-		},
-		"tracking": { "logDir": "tracking/highPrecision" }
-	},
-	{
-		"id": "highBuyRatio",
-		"name": "High Buy Ratio",
-		"description": "Focus on tokens with very high buy ratio early.",
-		"trackingFilters": {
-			"enabled": false,
-			"trackAllMints": false,
-			"minBuys": 5,
-			"minTotalTrades": 15,
-			"minUniqueTraders": 5,
-			"minBuyRatio": 0.75,
-			"minNetBuys": 2,
-			"minMcUsd": 1000,
-			"maxMcUsd": null,
-			"minUniquePerTrade": 0.7,
-			"minBuysPerUnique": 0,
-			"maxAgeAtTriggerSec": null,
-			"maxMcVolatilityRatio": 5
-		},
-		"tracking": { "logDir": "tracking/highBuyRatio" }
-	},
-	{
-		"id": "youngOnly",
-		"name": "Young Only",
-		"description": "Young tokens only (age-capped), medium precision filters.",
-		"trackingFilters": {
-			"enabled": false,
-			"trackAllMints": false,
-			"minBuys": 5,
-			"minTotalTrades": 8,
-			"minUniqueTraders": 5,
-			"minBuyRatio": 0.6,
-			"minNetBuys": 2,
-			"minMcUsd": 1000,
-			"maxMcUsd": null,
-			"minUniquePerTrade": 0.5,
-			"minBuysPerUnique": 0,
-			"maxAgeAtTriggerSec": 1800,
-			"maxMcVolatilityRatio": 5
-		},
-		"tracking": { "logDir": "tracking/youngOnly" }
-	},
-	{
-		"id": "lowCapFocus",
-		"name": "Low-Cap Focus",
-		"description": "Low market cap focus with density safeguards.",
-		"trackingFilters": {
-			"enabled": true,
-			"trackAllMints": false,
-			"minBuys": 5,
-			"minTotalTrades": 10,
-			"minUniqueTraders": 8,
-			"minBuyRatio": 0.6,
-			"minNetBuys": 2,
-			"minMcUsd": 1000,
-			"maxMcUsd": 100000,
-			"minUniquePerTrade": 0.5,
-			"minBuysPerUnique": 1.1,
-			"maxAgeAtTriggerSec": 3600,
-			"maxMcVolatilityRatio": 5
-		},
-		"tracking": { "logDir": "tracking/lowCapFocus" }
-	},
-	{
-		"id": "densityHigh",
-		"name": "Density High",
-		"description": "High participation density across metrics.",
-		"trackingFilters": {
-			"enabled": false,
-			"trackAllMints": false,
-			"minBuys": 8,
-			"minTotalTrades": 12,
-			"minUniqueTraders": 8,
-			"minBuyRatio": 0.6,
-			"minNetBuys": 3,
-			"minMcUsd": 1000,
-			"maxMcUsd": null,
-			"minUniquePerTrade": 0.7,
-			"minBuysPerUnique": 1.2,
-			"maxAgeAtTriggerSec": 3600,
-			"maxMcVolatilityRatio": 5
-		},
-		"tracking": { "logDir": "tracking/densityHigh" }
-	},
-	{
-		"id": "densityLight",
-		"name": "Density Light",
-		"description": "Lighter density thresholds for broader coverage.",
-		"trackingFilters": {
-			"enabled": false,
-			"trackAllMints": false,
-			"minBuys": 5,
-			"minTotalTrades": 8,
-			"minUniqueTraders": 5,
-			"minBuyRatio": 0.6,
-			"minNetBuys": 2,
-			"minMcUsd": 1000,
-			"maxMcUsd": null,
-			"minUniquePerTrade": 0.5,
-			"minBuysPerUnique": 1.0,
-			"maxAgeAtTriggerSec": 3600,
-			"maxMcVolatilityRatio": 5
-		},
-		"tracking": { "logDir": "tracking/densityLight" }
-	},
-	{
-		"id": "highPrecisionFast",
-		"name": "High Precision (Fast)",
-		"description": "High precision with earlier entries and slightly higher density.",
-		"trackingFilters": {
-			"enabled": false,
-			"trackAllMints": false,
-			"minBuys": 5,
-			"minTotalTrades": 15,
-			"minUniqueTraders": 12,
-			"minBuyRatio": 0.65,
-			"minNetBuys": 2,
-			"minMcUsd": 1000,
-			"maxMcUsd": null,
-			"minUniquePerTrade": 0.7,
-			"minBuysPerUnique": 1.1,
-			"maxAgeAtTriggerSec": 1200,
-			"maxMcVolatilityRatio": 5
-		},
-		"tracking": { "logDir": "tracking/highPrecisionFast" }
-	},
-	{
-		"id": "highPrecisionTight",
-		"name": "High Precision (Tight)",
-		"description": "Stricter thresholds to maximize precision and reduce drawdown.",
-		"trackingFilters": {
-			"enabled": false,
-			"trackAllMints": false,
-			"minBuys": 6,
-			"minTotalTrades": 15,
-			"minUniqueTraders": 15,
-			"minBuyRatio": 0.7,
-			"minNetBuys": 3,
-			"minMcUsd": 1500,
-			"maxMcUsd": null,
-			"minUniquePerTrade": 0.7,
-			"minBuysPerUnique": 1.2,
-			"maxAgeAtTriggerSec": 1800,
-			"maxMcVolatilityRatio": 3
-		},
-		"tracking": { "logDir": "tracking/highPrecisionTight" }
-	},
-	{
-		"id": "flowStrong",
-		"name": "Flow Strong",
-		"description": "Strong net-buy flow and participation momentum.",
-		"trackingFilters": {
-			"enabled": false,
-			"trackAllMints": false,
-			"minBuys": 8,
-			"minTotalTrades": 12,
-			"minUniqueTraders": 10,
-			"minBuyRatio": 0.65,
-			"minNetBuys": 6,
-			"minMcUsd": 1000,
-			"maxMcUsd": null,
-			"minUniquePerTrade": 0.7,
-			"minBuysPerUnique": 1.1,
-			"maxAgeAtTriggerSec": 1800,
-			"maxMcVolatilityRatio": 4
-		},
-		"tracking": { "logDir": "tracking/flowStrong" }
-	},
-	{
-		"id": "youngMomentum",
-		"name": "Young Momentum",
-		"description": "Very young tokens with early momentum and quality filters.",
-		"trackingFilters": {
-			"enabled": false,
-			"trackAllMints": false,
-			"minBuys": 6,
-			"minTotalTrades": 15,
-			"minUniqueTraders": 10,
-			"minBuyRatio": 0.7,
-			"minNetBuys": 3,
-			"minMcUsd": 1000,
-			"maxMcUsd": null,
-			"minUniquePerTrade": 0.7,
-			"minBuysPerUnique": 1.1,
-			"maxAgeAtTriggerSec": 900,
-			"maxMcVolatilityRatio": 3
-		},
-		"tracking": { "logDir": "tracking/youngMomentum" }
-	},
-	{
-		"id": "lowCapStrict",
-		"name": "Low-Cap Strict",
-		"description": "Strict filters for low-cap tokens to reduce noise/wash.",
-		"trackingFilters": {
-			"enabled": false,
-			"trackAllMints": false,
-			"minBuys": 8,
-			"minTotalTrades": 12,
-			"minUniqueTraders": 8,
-			"minBuyRatio": 0.6,
-			"minNetBuys": 3,
-			"minMcUsd": 1000,
-			"maxMcUsd": 50000,
-			"minUniquePerTrade": 0.7,
-			"minBuysPerUnique": 1.2,
-			"maxAgeAtTriggerSec": 3600,
-			"maxMcVolatilityRatio": 5
-		},
-		"tracking": { "logDir": "tracking/lowCapStrict" }
-	},
-	{
-		"id": "midCapPrecision",
-		"name": "Mid-Cap Precision",
-		"description": "Mid-cap sweet spot: liquidity with precision filters.",
-		"trackingFilters": {
-			"enabled": false,
-			"trackAllMints": false,
-			"minBuys": 7,
-			"minTotalTrades": 15,
-			"minUniqueTraders": 10,
-			"minBuyRatio": 0.65,
-			"minNetBuys": 3,
-			"minMcUsd": 10000,
-			"maxMcUsd": 250000,
-			"minUniquePerTrade": 0.6,
-			"minBuysPerUnique": 1.2,
-			"maxAgeAtTriggerSec": 3600,
-			"maxMcVolatilityRatio": 4
-		},
-		"tracking": { "logDir": "tracking/midCapPrecision" }
-	},
-	{
-		"id": "densityBalanced",
-		"name": "Density Balanced",
-		"description": "Balanced density thresholds for wider but cleaner coverage.",
-		"trackingFilters": {
-			"enabled": false,
-			"trackAllMints": false,
-			"minBuys": 6,
-			"minTotalTrades": 10,
-			"minUniqueTraders": 7,
-			"minBuyRatio": 0.6,
-			"minNetBuys": 3,
-			"minMcUsd": 1000,
-			"maxMcUsd": null,
-			"minUniquePerTrade": 0.6,
-			"minBuysPerUnique": 1.1,
-			"maxAgeAtTriggerSec": 3600,
-			"maxMcVolatilityRatio": 4
-		},
-		"tracking": { "logDir": "tracking/densityBalanced" }
-	},
-	{
-		"id": "catchAllYoung",
-		"name": "Catch All (Young)",
-		"description": "Catch-all restricted to young tokens to reduce timeouts.",
-		"trackingFilters": {
-			"enabled": true,
-			"trackAllMints": true,
-			"minBuys": 0,
-			"minTotalTrades": 0,
-			"minUniqueTraders": 0,
-			"minBuyRatio": 0,
-			"minNetBuys": 0,
-			"minMcUsd": 0,
-			"maxMcUsd": null,
-			"minUniquePerTrade": 0,
-			"minBuysPerUnique": 0,
-			"maxAgeAtTriggerSec": 1800,
-			"maxMcVolatilityRatio": 5
-		},
-		"tracking": { "logDir": "tracking/catchAllYoung" }
-	},
-	{
-		"id": "highPrecisionMinMC",
-		"name": "High Precision (Min MC)",
-		"description": "High precision targeting minimum MC range based on TP signals (6913-10000 USD).",
-		"trackingFilters": {
-			"enabled": false,
-			"trackAllMints": false,
-			"minBuys": 5,
-			"minTotalTrades": 15,
-			"minUniqueTraders": 12,
-			"minBuyRatio": 0.65,
-			"minNetBuys": 2,
-			"minMcUsd": 6500,
-			"maxMcUsd": 10000,
-			"minUniquePerTrade": 0.7,
-			"minBuysPerUnique": 0,
-			"maxAgeAtTriggerSec": null,
-			"maxMcVolatilityRatio": 5
-		},
-		"tracking": { "logDir": "tracking/highPrecisionMinMC" }
-	},
-	{
-		"id": "highPrecisionMedianMC",
-		"name": "High Precision (Median MC)",
-		"description": "High precision targeting median MC range based on TP signals (9260-12000 USD).",
-		"trackingFilters": {
-			"enabled": false,
-			"trackAllMints": false,
-			"minBuys": 5,
-			"minTotalTrades": 15,
-			"minUniqueTraders": 12,
-			"minBuyRatio": 0.65,
-			"minNetBuys": 2,
-			"minMcUsd": 9000,
-			"maxMcUsd": 12000,
-			"minUniquePerTrade": 0.7,
-			"minBuysPerUnique": 0,
-			"maxAgeAtTriggerSec": null,
-			"maxMcVolatilityRatio": 5
-		},
-		"tracking": { "logDir": "tracking/highPrecisionMedianMC" }
-	},
-	{
-		"id": "highPrecisionAvgMC",
-		"name": "High Precision (Avg MC)",
-		"description": "High precision targeting average MC range based on TP signals (10165-15000 USD).",
-		"trackingFilters": {
-			"enabled": false,
-			"trackAllMints": false,
-			"minBuys": 5,
-			"minTotalTrades": 15,
-			"minUniqueTraders": 12,
-			"minBuyRatio": 0.65,
-			"minNetBuys": 2,
-			"minMcUsd": 10000,
-			"maxMcUsd": 15000,
-			"minUniquePerTrade": 0.7,
-			"minBuysPerUnique": 0,
-			"maxAgeAtTriggerSec": null,
-			"maxMcVolatilityRatio": 5
-		},
-		"tracking": { "logDir": "tracking/highPrecisionAvgMC" }
-	},
-	{
-		"id": "highPrecisionMaxMC",
-		"name": "High Precision (Max MC)",
-		"description": "High precision targeting maximum MC range based on TP signals (25000-39062 USD).",
-		"trackingFilters": {
-			"enabled": false,
-			"trackAllMints": false,
-			"minBuys": 5,
-			"minTotalTrades": 15,
-			"minUniqueTraders": 12,
-			"minBuyRatio": 0.65,
-			"minNetBuys": 2,
-			"minMcUsd": 25000,
-			"maxMcUsd": 39000,
-			"minUniquePerTrade": 0.7,
-			"minBuysPerUnique": 0,
-			"maxAgeAtTriggerSec": null,
-			"maxMcVolatilityRatio": 5
-		},
-		"tracking": { "logDir": "tracking/highPrecisionMaxMC" }
-	},
-	{
 		"id": "highPrecisionSweetSpot",
 		"name": "High Precision (Sweet Spot)",
-		"description": "High precision targeting the sweet spot MC range (8000-20000 USD) with slightly relaxed filters.",
+		"description": "Winner baseline: MC 8k–20k con filtros equilibrados.",
 		"trackingFilters": {
 			"enabled": true,
 			"trackAllMints": false,
@@ -424,6 +18,123 @@
 			"maxAgeAtTriggerSec": null,
 			"maxMcVolatilityRatio": 5
 		},
-		"tracking": { "logDir": "tracking/highPrecisionSweetSpot" }
+		"tracking": {
+			"logDir": "tracking/highPrecisionSweetSpot"
+		}
+	},
+	{
+		"id": "sweetSpotConservative",
+		"name": "Sweet Spot — Conservative",
+		"description": "Más estricta para reducir drawdown; dentro del rango ganador.",
+		"trackingFilters": {
+			"enabled": true,
+			"trackAllMints": false,
+			"minBuys": 6,
+			"minTotalTrades": 15,
+			"minUniqueTraders": 14,
+			"minBuyRatio": 0.67,
+			"minNetBuys": 3,
+			"minMcUsd": 9000,
+			"maxMcUsd": 18000,
+			"minUniquePerTrade": 0.7,
+			"minBuysPerUnique": 1.2,
+			"maxAgeAtTriggerSec": 1200,
+			"maxMcVolatilityRatio": 3
+		},
+		"tracking": {
+			"logDir": "tracking/sweetSpotConservative"
+		}
+	},
+	{
+		"id": "sweetSpotAggressive",
+		"name": "Sweet Spot — Aggressive Early",
+		"description": "Entrada muy temprana en 8k–20k; más cobertura, algo más de riesgo.",
+		"trackingFilters": {
+			"enabled": true,
+			"trackAllMints": false,
+			"minBuys": 5,
+			"minTotalTrades": 10,
+			"minUniqueTraders": 8,
+			"minBuyRatio": 0.6,
+			"minNetBuys": 2,
+			"minMcUsd": 8000,
+			"maxMcUsd": 20000,
+			"minUniquePerTrade": 0.6,
+			"minBuysPerUnique": 1.0,
+			"maxAgeAtTriggerSec": 600,
+			"maxMcVolatilityRatio": 5
+		},
+		"tracking": {
+			"logDir": "tracking/sweetSpotAggressive"
+		}
+	},
+	{
+		"id": "sweetSpotAntiWash",
+		"name": "Sweet Spot — Anti-Wash",
+		"description": "Sesgo anti-wash subiendo unicidad y buys/unique; filtra ruido.",
+		"trackingFilters": {
+			"enabled": true,
+			"trackAllMints": false,
+			"minBuys": 6,
+			"minTotalTrades": 12,
+			"minUniqueTraders": 12,
+			"minBuyRatio": 0.62,
+			"minNetBuys": 3,
+			"minMcUsd": 8000,
+			"maxMcUsd": 20000,
+			"minUniquePerTrade": 0.72,
+			"minBuysPerUnique": 1.3,
+			"maxAgeAtTriggerSec": 1800,
+			"maxMcVolatilityRatio": 3
+		},
+		"tracking": {
+			"logDir": "tracking/sweetSpotAntiWash"
+		}
+	},
+	{
+		"id": "sweetSpotLate",
+		"name": "Sweet Spot — Late Confirmation",
+		"description": "Confirma más tarde con ratios más altos; entradas menos frecuentes pero más sólidas.",
+		"trackingFilters": {
+			"enabled": true,
+			"trackAllMints": false,
+			"minBuys": 8,
+			"minTotalTrades": 18,
+			"minUniqueTraders": 14,
+			"minBuyRatio": 0.66,
+			"minNetBuys": 4,
+			"minMcUsd": 9000,
+			"maxMcUsd": 20000,
+			"minUniquePerTrade": 0.68,
+			"minBuysPerUnique": 1.2,
+			"maxAgeAtTriggerSec": 3600,
+			"maxMcVolatilityRatio": 4
+		},
+		"tracking": {
+			"logDir": "tracking/sweetSpotLate"
+		}
+	},
+	{
+		"id": "sweetSpotMidband",
+		"name": "Sweet Spot — Midband (9k–12k)",
+		"description": "Foco en la banda central alrededor de la mediana/avg de TPs (~9.6–10.3k).",
+		"trackingFilters": {
+			"enabled": true,
+			"trackAllMints": false,
+			"minBuys": 6,
+			"minTotalTrades": 12,
+			"minUniqueTraders": 11,
+			"minBuyRatio": 0.64,
+			"minNetBuys": 3,
+			"minMcUsd": 9000,
+			"maxMcUsd": 12000,
+			"minUniquePerTrade": 0.68,
+			"minBuysPerUnique": 1.1,
+			"maxAgeAtTriggerSec": 1800,
+			"maxMcVolatilityRatio": 4
+		},
+		"tracking": {
+			"logDir": "tracking/sweetSpotMidband"
+		}
 	}
 ]
