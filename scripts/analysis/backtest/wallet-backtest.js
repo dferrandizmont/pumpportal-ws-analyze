@@ -134,7 +134,7 @@ async function main() {
 	const conc = parseInt(process.env.BACKTEST_PARSE_CONCURRENCY || "6", 10) || 6;
 
 	// Log de inicio con parámetros básicos
-	console.log("Iniciando wallet backtest");
+	console.log("Starting wallet backtest");
 	console.log(
 		[
 			`Estrategia: ${strategyId}`,
@@ -167,26 +167,26 @@ async function main() {
 	}
 
 	const logDir = getStrategyLogDir(strategyId);
-	console.log(`Directorio de tracking: ${logDir}`);
+	console.log(`Tracking directory: ${logDir}`);
 	const files = listTokenLogs(logDir);
-	console.log(`Archivos de log encontrados: ${files.length}`);
+	console.log(`Log files found: ${files.length}`);
 	if (!files.length) {
-		console.error(`No hay logs en ${logDir}. Asegúrate de tener tracking para la estrategia '${strategyId}'.`);
+		console.error(`No logs in ${logDir}. Make sure you have tracking data for strategy '${strategyId}'.`);
 		process.exit(1);
 	}
 
 	const sessions = await parseAllSessions(files, { concurrency: conc, limit });
 	if (!sessions.length) {
-		console.error("No hay sesiones parseadas (todas podrían carecer de summary y se descartaron).");
+		console.error("No parsed sessions (all might lack summary data and were discarded).");
 		process.exit(1);
 	}
-	console.log(`[Wallet] Sesiones parseadas: ${sessions.length} (desde ${files.length} archivos)`);
+	console.log(`[Wallet] Parsed sessions: ${sessions.length} (from ${files.length} files)`);
 
-	// Métricas de puntos para verificar volumen procesado
+	// Point metrics to verify processed volume
 	const totalPoints = sessions.reduce((acc, s) => acc + (Array.isArray(s.points) ? s.points.length : 0), 0);
 	const avgPoints = sessions.length ? totalPoints / sessions.length : 0;
 	const maxPoints = sessions.reduce((m, s) => Math.max(m, Array.isArray(s.points) ? s.points.length : 0), 0);
-	console.log(`[Wallet] Puntos totales=${totalPoints}, media por sesión=${avgPoints.toFixed(1)}, máx por sesión=${maxPoints}`);
+	console.log(`[Wallet] Total points=${totalPoints}, average per session=${avgPoints.toFixed(1)}, max per session=${maxPoints}`);
 
 	// Ordenar por startedAt ascendente; si falta, enviar al final
 	sessions.sort((a, b) => {
@@ -1051,7 +1051,8 @@ async function main() {
             </tr>
           </thead>
           <tbody>
-            ${trades
+            ${[...trades]
+				.sort((a, b) => new Date(b.startedAt || 0) - new Date(a.startedAt || 0))
 				.map((t) => {
 					const exitPctClass = t.exitPct >= 0 ? "positive" : "negative";
 					const netPctClass = t.netPct >= 0 ? "positive" : "negative";
@@ -1069,6 +1070,20 @@ async function main() {
 						TIMEOUT: "Timeout",
 						END: "Session End",
 					};
+
+					// Format dates in 24H format
+					const formatDate24H = (dateStr) => {
+						if (!dateStr) return "";
+						const date = new Date(dateStr);
+						const day = String(date.getDate()).padStart(2, "0");
+						const month = String(date.getMonth() + 1).padStart(2, "0");
+						const year = date.getFullYear();
+						const hours = String(date.getHours()).padStart(2, "0");
+						const minutes = String(date.getMinutes()).padStart(2, "0");
+						const seconds = String(date.getSeconds()).padStart(2, "0");
+						return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+					};
+
 					return `<tr>
                 <td><span class="token-tag" data-token="${esc(t.token)}" data-display="${esc((t.token || "").length > 10 ? t.token.slice(0, 4) + "..." + t.token.slice(-6) : t.token)}" title="${esc(t.token)}">${esc((t.token || "").length > 10 ? t.token.slice(0, 4) + "..." + t.token.slice(-6) : t.token)}</span></td>
                 <td><span class="exit-badge ${t.exitReason}">${reasonLabels[t.exitReason] || esc(t.exitReason)}</span></td>
@@ -1079,8 +1094,8 @@ async function main() {
                 <td><span class="percentage ${pnlClass}">${toFixed(t.pnl, 6)}</span></td>
                 <td>${toFixed(t.walletAfter, 6)}</td>
                 <td>${toFixed(t.entryMarketCap, 0)}</td>
-                <td>${esc(t.startedAt ? new Date(t.startedAt).toLocaleString("en-US") : "")}</td>
-                <td>${esc(t.endedAt ? new Date(t.endedAt).toLocaleString("en-US") : "")}</td>
+                <td>${esc(t.startedAt ? formatDate24H(t.startedAt) : "")}</td>
+                <td>${esc(t.endedAt ? formatDate24H(t.endedAt) : "")}</td>
               </tr>`;
 				})
 				.join("")}
@@ -1131,22 +1146,22 @@ async function main() {
 	fs.writeFileSync(path.join(OUTPUT_DIR, "report.html"), html, "utf8");
 
 	const totalSec = ((Date.now() - startTs) / 1000).toFixed(1);
-	console.log("Wallet backtest completado.");
+	console.log("Wallet backtest completed.");
 	if (trades.length > 0) {
 		const winRatePct = ((wins / trades.length) * 100).toFixed(2);
 		console.log(
-			`Resumen: trades=${trades.length}, wins=${wins}, losses=${losses}, winRate=${winRatePct}%, final=${toFixed(wallet, 6)} SOL, maxDD=${(maxDrawdown * 100).toFixed(2)}%, duración=${totalSec}s`
+			`Summary: trades=${trades.length}, wins=${wins}, losses=${losses}, winRate=${winRatePct}%, final=${toFixed(wallet, 6)} SOL, maxDD=${(maxDrawdown * 100).toFixed(2)}%, duration=${totalSec}s`
 		);
 		try {
-			console.log(`[Wallet] Razones de salida: ${JSON.stringify(summary.exitReasons)}`);
+			console.log(`[Wallet] Exit reasons: ${JSON.stringify(summary.exitReasons)}`);
 		} catch (error) {
 			// Ignore JSON serialization errors
 		}
 	}
-	console.log(`Salida: ${OUTPUT_DIR}/trades.csv, summary.json, report.html`);
+	console.log(`Output: ${OUTPUT_DIR}/trades.csv, summary.json, report.html`);
 }
 
 main().catch((e) => {
-	console.error("Error en wallet-backtest:", e);
+	console.error("Error in wallet-backtest:", e);
 	process.exit(1);
 });

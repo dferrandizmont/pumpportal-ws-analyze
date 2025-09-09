@@ -76,7 +76,7 @@ const config = {
 
 	// HTTP Server Configuration
 	http: {
-		port: parseInt(process.env.HTTP_PORT) || 3000,
+		port: parseInt(process.env.HTTP_PORT) || 3012,
 	},
 
 	// Price Service Configuration

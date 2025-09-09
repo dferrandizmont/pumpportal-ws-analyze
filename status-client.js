@@ -78,7 +78,7 @@ function getSellState(percentage, threshold = 80) {
  *   watch   - Continuously monitor stats
  */
 
-const PORT = process.env.HTTP_PORT || 3000;
+const PORT = process.env.HTTP_PORT || 3012;
 const HOST = "localhost";
 
 function makeRequest(endpoint) {
@@ -309,7 +309,7 @@ async function main() {
 				console.info("  🔹 node status-client.js watch 10");
 				console.info("");
 				console.info("⚙️  Environment Variables:");
-				console.info("  🌐 HTTP_PORT           Port where the main app is running (default: 3000)");
+				console.info("  🌐 HTTP_PORT           Port where the main app is running (default: 3012)");
 				console.info("");
 				console.info("═══════════════════════════════════════════════════════════\n");
 				break;
