@@ -184,6 +184,13 @@ class PumpPortalAnalyzer {
 								})
 								.filter(Boolean),
 							summary: stats,
+							subscriptions: {
+								currentTokens: this.tokenMonitor.wsClient.subscribedTokens.size,
+								currentAccounts: this.tokenMonitor.wsClient.subscribedAccounts.size,
+								totalSubscribed: this.tokenMonitor.wsClient.subscribedTokens.size + this.tokenMonitor.wsClient.subscribedAccounts.size,
+								wsConnected: this.tokenMonitor.wsClient.isConnected,
+							},
+							subscriptionStats: stats.subscriptionStats,
 						};
 
 						res.writeHead(200);
@@ -249,6 +256,13 @@ class PumpPortalAnalyzer {
 									states: quickStats.states,
 									alerts: quickStats.alerts,
 									tracking: quickStats.tracking,
+									subscriptions: {
+										currentTokens: this.tokenMonitor.wsClient.subscribedTokens.size,
+										currentAccounts: this.tokenMonitor.wsClient.subscribedAccounts.size,
+										totalSubscribed: this.tokenMonitor.wsClient.subscribedTokens.size + this.tokenMonitor.wsClient.subscribedAccounts.size,
+										wsConnected: this.tokenMonitor.wsClient.isConnected,
+									},
+									subscriptionStats: quickStats.subscriptionStats,
 								},
 								null,
 								2

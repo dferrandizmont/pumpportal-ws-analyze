@@ -17,6 +17,13 @@ class TokenMonitor {
 		this.tokenTradeStats = new Map(); // tokenAddress -> { total, buys, sells, traders:Set, lastTradeAt }
 		this.cleanupInterval = null;
 
+		// Estadísticas históricas de suscripciones
+		this.stats = {
+			totalTokensEverSubscribed: 0,
+			totalNewTokensDetected: 0,
+			totalTrackingSessionsStarted: 0,
+		};
+
 		this.setupMessageHandlers();
 	}
 
@@ -218,6 +225,11 @@ class TokenMonitor {
 				totalActiveSessions: totalActiveTrackingSessions,
 				byStrategy: trackingSummary,
 			},
+			subscriptionStats: {
+				totalTokensEverSubscribed: this.stats.totalTokensEverSubscribed,
+				totalNewTokensDetected: this.stats.totalNewTokensDetected,
+				totalTrackingSessionsStarted: this.stats.totalTrackingSessionsStarted,
+			},
 		};
 	}
 
@@ -384,6 +396,7 @@ class TokenMonitor {
 
 		byToken.set(strategy.id, session);
 		this.activeTracking.set(tokenAddress, byToken);
+		this.stats.totalTrackingSessionsStarted++;
 
 		logger.tokenMonitor("Tracking started for token", { tokenAddress, strategyId: strategy.id, filePath });
 	}
@@ -594,6 +607,8 @@ class TokenMonitor {
 
 			// Subscribe to trades for this token
 			this.wsClient.subscribeTokenTrades([tokenAddress]);
+			this.stats.totalTokensEverSubscribed++;
+			this.stats.totalNewTokensDetected++;
 			logger.debugTokenMonitor(`Subscribed to trades for new token: ${tokenName} (${tokenSymbol})`, {
 				tokenAddress,
 				creatorAddress,

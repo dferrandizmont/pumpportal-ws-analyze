@@ -31,3 +31,145 @@ branch.main.vscode-merge-base=origin/main
 branch.main.vscode-merge-base=origin/main
 lfs.repositoryformatversion=0
 lfs.https://github.com/dferrandizmont/pumpportal-ws-analyze.git/info/lfs.access=basic
+warning: in the working copy of 'src/token-monitor.js', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/src/token-monitor.js b/src/token-monitor.js[m
+[1mindex dceb530a8..4c53f71c0 100644[m
+[1m--- a/src/token-monitor.js[m
+[1m+++ b/src/token-monitor.js[m
+[36m@@ -15,6 +15,14 @@[m [mclass TokenMonitor {[m
+ 		this.tokenSellTracking = new Map(); // tokenAddress -> sellInfo (por token individual)[m
+ 		this.activeTracking = new Map(); // tokenAddress -> tracking session[m
+ 		this.tokenTradeStats = new Map(); // tokenAddress -> { total, buys, sells, traders:Set, lastTradeAt }[m
+[32m+[m		[32mthis.cleanupInterval = null;[m
+[32m+[m
+[32m+[m		[32m// Estadísticas históricas de suscripciones[m
+[32m+[m		[32mthis.stats = {[m
+[32m+[m			[32mtotalTokensEverSubscribed: 0,[m
+[32m+[m			[32mtotalNewTokensDetected: 0,[m
+[32m+[m			[32mtotalTrackingSessionsStarted: 0,[m
+[32m+[m		[32m};[m
+ [m
+ 		this.setupMessageHandlers();[m
+ 	}[m
+[36m@@ -26,6 +34,9 @@[m [mclass TokenMonitor {[m
+ 		// Subscribe to new token events[m
+ 		this.wsClient.subscribeNewTokens();[m
+ [m
+[32m+[m		[32m// Start periodic cleanup of unused subscriptions[m
+[32m+[m		[32mthis.startCleanupInterval();[m
+[32m+[m
+ 		// No mostrar estado automáticamente - solo disponible via HTTP[m
+ [m
+ 		// Limpiar trades procesados cada hora para evitar memory leaks[m
+[36m@@ -42,6 +53,7 @@[m [mclass TokenMonitor {[m
+ [m
+ 	stop() {[m
+ 		logger.tokenMonitor("Stopping Token Monitor...");[m
+[32m+[m		[32mthis.stopCleanupInterval();[m
+ 		this.wsClient.disconnect();[m
+ 	}[m
+ [m
+[36m@@ -213,6 +225,11 @@[m [mclass TokenMonitor {[m
+ 				totalActiveSessions: totalActiveTrackingSessions,[m
+ 				byStrategy: trackingSummary,[m
+ 			},[m
+[32m+[m			[32msubscriptionStats: {[m
+[32m+[m				[32mtotalTokensEverSubscribed: this.stats.totalTokensEverSubscribed,[m
+[32m+[m				[32mtotalNewTokensDetected: this.stats.totalNewTokensDetected,[m
+[32m+[m				[32mtotalTrackingSessionsStarted: this.stats.totalTrackingSessionsStarted,[m
+[32m+[m			[32m},[m
+ 		};[m
+ 	}[m
+ [m
+[36m@@ -379,6 +396,7 @@[m [mclass TokenMonitor {[m
+ [m
+ 		byToken.set(strategy.id, session);[m
+ 		this.activeTracking.set(tokenAddress, byToken);[m
+[32m+[m		[32mthis.stats.totalTrackingSessionsStarted++;[m
+ [m
+ 		logger.tokenMonitor("Tracking started for token", { tokenAddress, strategyId: strategy.id, filePath });[m
+ 	}[m
+[36m@@ -589,6 +607,8 @@[m [mclass TokenMonitor {[m
+ [m
+ 			// Subscribe to trades for this token[m
+ 			this.wsClient.subscribeTokenTrades([tokenAddress]);[m
+[32m+[m			[32mthis.stats.totalTokensEverSubscribed++;[m
+[32m+[m			[32mthis.stats.totalNewTokensDetected++;[m
+ 			logger.debugTokenMonitor(`Subscribed to trades for new token: ${tokenName} (${tokenSymbol})`, {[m
+ 				tokenAddress,[m
+ 				creatorAddress,[m
+[36m@@ -983,6 +1003,10 @@[m [mclass TokenMonitor {[m
+ 			// Evaluate each configured strategy independently and start per-strategy sessions[m
+ 			const strategies =[m
+ 				Array.isArray(config.strategies) && config.strategies.length > 0 ? config.strategies : [{ id: "default", trackingFilters: f, tracking: config.tracking }];[m
+[32m+[m
+[32m+[m			[32m// Track which strategies will be active for this token[m
+[32m+[m			[32mconst activeStrategies = new Set();[m
+[32m+[m
+ 			for (const strat of strategies) {[m
+ 				const sf = strat.trackingFilters || { enabled: false };[m
+ 				let stratPasses = true;[m
+[36m@@ -1029,6 +1053,7 @@[m [mclass TokenMonitor {[m
+ 					continue;[m
+ 				}[m
+ [m
+[32m+[m				[32mactiveStrategies.add(strat.id);[m
+ 				const existing = this.activeTracking.get(tokenAddress);[m
+ 				if (!existing || !existing.has(strat.id)) {[m
+ 					this.startTracking(tokenAddress, strat, {[m
+[36m@@ -1044,6 +1069,12 @@[m [mclass TokenMonitor {[m
+ 					});[m
+ 				}[m
+ 			}[m
+[32m+[m
+[32m+[m			[32m// If no strategies are active for this token, unsubscribe from trades[m
+[32m+[m			[32mif (activeStrategies.size === 0) {[m
+[32m+[m				[32mlogger.tokenMonitor("No active strategies for token, unsubscribing from trades", { tokenAddress });[m
+[32m+[m				[32mthis.wsClient.unsubscribeTokenTrades([tokenAddress]);[m
+[32m+[m			[32m}[m
+ 		}[m
+ [m
+ 		// If creator fully exited position, record market caps[m
+[36m@@ -1195,6 +1226,42 @@[m [mclass TokenMonitor {[m
+ [m
+ 		console.info(`Status: ${statusSummary}`);[m
+ 	}[m
+[32m+[m
+[32m+[m	[32m// Start periodic cleanup of unused subscriptions[m
+[32m+[m	[32mstartCleanupInterval() {[m
+[32m+[m		[32m// Clean up at configured interval[m
+[32m+[m		[32mthis.cleanupInterval = setInterval(() => {[m
+[32m+[m			[32mthis.cleanupUnusedSubscriptions();[m
+[32m+[m		[32m}, config.pumpPortal.cleanup.intervalMs);[m
+[32m+[m	[32m}[m
+[32m+[m
+[32m+[m	[32m// Clean up unused subscriptions[m
+[32m+[m	[32mcleanupUnusedSubscriptions() {[m
+[32m+[m		[32mconst activeTokens = new Set();[m
+[32m+[m
+[32m+[m		[32m// Collect all actively tracked tokens[m
+[32m+[m		[32mfor (const [tokenAddress, strategies] of this.activeTracking.entries()) {[m
+[32m+[m			[32mif (strategies.size > 0) {[m
+[32m+[m				[32mactiveTokens.add(tokenAddress);[m
+[32m+[m			[32m}[m
+[32m+[m		[32m}[m
+[32m+[m
+[32m+[m		[32m// Get tokens that should be unsubscribed[m
+[32m+[m		[32mconst tokensToUnsubscribe = this.wsClient.getTokensToUnsubscribe(Array.from(activeTokens));[m
+[32m+[m
+[32m+[m		[32mif (tokensToUnsubscribe.length > 0) {[m
+[32m+[m			[32mlogger.tokenMonitor(`Cleaning up ${tokensToUnsubscribe.length} unused subscriptions`);[m
+[32m+[m			[32mthis.wsClient.unsubscribeTokenTradesBatch(tokensToUnsubscribe);[m
+[32m+[m		[32m}[m
+[32m+[m	[32m}[m
+[32m+[m
+[32m+[m	[32m// Stop cleanup interval[m
+[32m+[m	[32mstopCleanupInterval() {[m
+[32m+[m		[32mif (this.cleanupInterval) {[m
+[32m+[m			[32mclearInterval(this.cleanupInterval);[m
+[32m+[m			[32mthis.cleanupInterval = null;[m
+[32m+[m		[32m}[m
+[32m+[m	[32m}[m
+ }[m
+ [m
+ export default TokenMonitor;[m

@@ -190,6 +190,23 @@ function formatStats(data) {
 	console.info(`📈 Venta media creador: ${formatPercentEs(avgSell)}${distToThr > 0 ? ` (a ${formatNumberEs(distToThr, { maximumFractionDigits: 2 })} p. p. del umbral)` : ""}`);
 	console.info(`🎚️  Umbral de venta creador: ${formatPercentEs(threshold, 0)}`);
 
+	// Información de suscripciones WebSocket
+	if (data.subscriptions) {
+		const sub = data.subscriptions;
+		const wsIcon = sub.wsConnected ? "🟢" : "🔴";
+		console.info(
+			`🔌 WebSocket: ${wsIcon} ${sub.wsConnected ? "Conectado" : "Desconectado"} · Tokens actuales: ${sub.currentTokens || 0} · Total histórico: ${data.subscriptionStats?.totalTokensEverSubscribed || 0} · Cuentas suscritas: ${sub.currentAccounts || 0} · Total suscripciones: ${sub.totalSubscribed || 0}`
+		);
+	}
+
+	// Estadísticas históricas de suscripciones
+	if (data.subscriptionStats) {
+		const stats = data.subscriptionStats;
+		console.info(
+			`📊 Histórico: tokens detectados=${stats.totalNewTokensDetected || 0} · tokens suscritos=${stats.totalTokensEverSubscribed || 0} · sesiones tracking=${stats.totalTrackingSessionsStarted || 0}`
+		);
+	}
+
 	// Distribución por estado (si disponible)
 	if (data.states) {
 		const s = data.states;
