@@ -8,6 +8,21 @@ const config = {
 	pumpPortal: {
 		wsUrl: process.env.PUMP_PORTAL_WS_URL || "wss://pumpportal.fun/api/data",
 		apiKey: process.env.PUMP_PORTAL_API_KEY,
+		heartbeat: {
+			intervalMs: parseInt(process.env.WS_HEARTBEAT_INTERVAL_MS) || 30000,
+			timeoutMs: parseInt(process.env.WS_HEARTBEAT_TIMEOUT_MS) || 31000,
+		},
+		rateLimit: {
+			messagesPerSecond: parseInt(process.env.WS_RATE_LIMIT_MSGS_PER_SEC) || 200,
+			maxMessageSize: parseInt(process.env.WS_MAX_MESSAGE_SIZE) || 5000,
+		},
+		batch: {
+			size: parseInt(process.env.WS_BATCH_SIZE) || 20,
+			delayMs: parseInt(process.env.WS_BATCH_DELAY_MS) || 100,
+		},
+		cleanup: {
+			intervalMs: parseInt(process.env.WS_CLEANUP_INTERVAL_MS) || 300000, // 5 minutes
+		},
 	},
 
 	// Logging Configuration

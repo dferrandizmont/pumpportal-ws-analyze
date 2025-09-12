@@ -15,6 +15,7 @@ class TokenMonitor {
 		this.tokenSellTracking = new Map(); // tokenAddress -> sellInfo (por token individual)
 		this.activeTracking = new Map(); // tokenAddress -> tracking session
 		this.tokenTradeStats = new Map(); // tokenAddress -> { total, buys, sells, traders:Set, lastTradeAt }
+		this.cleanupInterval = null;
 
 		this.setupMessageHandlers();
 	}
@@ -25,6 +26,9 @@ class TokenMonitor {
 
 		// Subscribe to new token events
 		this.wsClient.subscribeNewTokens();
+
+		// Start periodic cleanup of unused subscriptions
+		this.startCleanupInterval();
 
 		// No mostrar estado automáticamente - solo disponible via HTTP
 
@@ -42,6 +46,7 @@ class TokenMonitor {
 
 	stop() {
 		logger.tokenMonitor("Stopping Token Monitor...");
+		this.stopCleanupInterval();
 		this.wsClient.disconnect();
 	}
 
@@ -983,6 +988,10 @@ class TokenMonitor {
 			// Evaluate each configured strategy independently and start per-strategy sessions
 			const strategies =
 				Array.isArray(config.strategies) && config.strategies.length > 0 ? config.strategies : [{ id: "default", trackingFilters: f, tracking: config.tracking }];
+
+			// Track which strategies will be active for this token
+			const activeStrategies = new Set();
+
 			for (const strat of strategies) {
 				const sf = strat.trackingFilters || { enabled: false };
 				let stratPasses = true;
@@ -1029,6 +1038,7 @@ class TokenMonitor {
 					continue;
 				}
 
+				activeStrategies.add(strat.id);
 				const existing = this.activeTracking.get(tokenAddress);
 				if (!existing || !existing.has(strat.id)) {
 					this.startTracking(tokenAddress, strat, {
@@ -1043,6 +1053,12 @@ class TokenMonitor {
 						thresholdPrice,
 					});
 				}
+			}
+
+			// If no strategies are active for this token, unsubscribe from trades
+			if (activeStrategies.size === 0) {
+				logger.tokenMonitor("No active strategies for token, unsubscribing from trades", { tokenAddress });
+				this.wsClient.unsubscribeTokenTrades([tokenAddress]);
 			}
 		}
 
@@ -1194,6 +1210,42 @@ class TokenMonitor {
 			.join(" | ");
 
 		console.info(`Status: ${statusSummary}`);
+	}
+
+	// Start periodic cleanup of unused subscriptions
+	startCleanupInterval() {
+		// Clean up at configured interval
+		this.cleanupInterval = setInterval(() => {
+			this.cleanupUnusedSubscriptions();
+		}, config.pumpPortal.cleanup.intervalMs);
+	}
+
+	// Clean up unused subscriptions
+	cleanupUnusedSubscriptions() {
+		const activeTokens = new Set();
+
+		// Collect all actively tracked tokens
+		for (const [tokenAddress, strategies] of this.activeTracking.entries()) {
+			if (strategies.size > 0) {
+				activeTokens.add(tokenAddress);
+			}
+		}
+
+		// Get tokens that should be unsubscribed
+		const tokensToUnsubscribe = this.wsClient.getTokensToUnsubscribe(Array.from(activeTokens));
+
+		if (tokensToUnsubscribe.length > 0) {
+			logger.tokenMonitor(`Cleaning up ${tokensToUnsubscribe.length} unused subscriptions`);
+			this.wsClient.unsubscribeTokenTradesBatch(tokensToUnsubscribe);
+		}
+	}
+
+	// Stop cleanup interval
+	stopCleanupInterval() {
+		if (this.cleanupInterval) {
+			clearInterval(this.cleanupInterval);
+			this.cleanupInterval = null;
+		}
 	}
 }
 
