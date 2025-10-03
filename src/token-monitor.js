@@ -3,6 +3,7 @@ import logger from "./logger.js";
 import config from "./config.js";
 import priceService from "./price-service.js";
 import { formatCurrencyEs, formatPercentage } from "./utils.js";
+import MarketTemperature from "./market-temperature.js";
 import fs from "fs";
 import path from "path";
 import moment from "moment-timezone";
@@ -15,6 +16,7 @@ class TokenMonitor {
 		this.tokenSellTracking = new Map(); // tokenAddress -> sellInfo (por token individual)
 		this.activeTracking = new Map(); // tokenAddress -> tracking session
 		this.tokenTradeStats = new Map(); // tokenAddress -> { total, buys, sells, traders:Set, lastTradeAt }
+		this.marketTemperature = new MarketTemperature(); // Market temperature tracker
 		this.cleanupInterval = null;
 
 		// Estadísticas históricas de suscripciones
@@ -609,6 +611,10 @@ class TokenMonitor {
 			this.wsClient.subscribeTokenTrades([tokenAddress]);
 			this.stats.totalTokensEverSubscribed++;
 			this.stats.totalNewTokensDetected++;
+			
+			// Record new token for market temperature
+			this.marketTemperature.recordNewToken();
+			
 			logger.debugTokenMonitor(`Subscribed to trades for new token: ${tokenName} (${tokenSymbol})`, {
 				tokenAddress,
 				creatorAddress,
@@ -1011,6 +1017,7 @@ class TokenMonitor {
 				const sf = strat.trackingFilters || { enabled: false };
 				let stratPasses = true;
 				if (sf.enabled) {
+					// Basic filters (existing)
 					stratPasses =
 						buys >= (sf.minBuys || 0) &&
 						total >= (sf.minTotalTrades || 0) &&

@@ -8,6 +8,8 @@
 		"start": "node src/index.js",
 		"dev": "nodemon src/index.js",
 		"status": "node status-client.js",
+		"metrics": "node examples/metrics-monitor.js",
+		"metrics:detailed": "node examples/metrics-monitor-detailed.js",
 		"split:summaries": "node scripts/analysis/split-summaries-by-outcome.js",
 		"analyze:good": "node scripts/analysis/analyze-good-predictors.js",
 		"analyze:backtest": "node scripts/analysis/backtest/backtest-strategies.js",

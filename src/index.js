@@ -113,10 +113,27 @@ class PumpPortalAnalyzer {
 						// Detailed status
 						const tokens = this.tokenMonitor.getMonitoredTokens();
 						const stats = this.tokenMonitor.getStats();
+						const marketTemp = this.tokenMonitor.marketTemperature.getStats();
+						
+						// Build trade stats object for all monitored tokens
+						const tradeStats = {};
+						for (const [tokenAddress, aggStats] of this.tokenMonitor.tokenTradeStats.entries()) {
+							tradeStats[tokenAddress] = {
+								total: aggStats.total || 0,
+								buys: aggStats.buys || 0,
+								sells: aggStats.sells || 0,
+								uniqueTraders: aggStats.traders ? aggStats.traders.size : 0,
+								lastTradeAt: aggStats.lastTradeAt,
+								minMcUsd: aggStats.minMcUsd,
+								maxMcUsd: aggStats.maxMcUsd,
+							};
+						}
 
 						const statusResponse = {
 							timestamp: new Date().toISOString(),
 							uptime: process.uptime(),
+							marketTemperature: marketTemp,
+							tradeStats,
 							creatorSellThreshold: config.thresholds.creatorSellThreshold,
 							trackingFilters: (() => {
 								const tf = config.trackingFilters || {};
@@ -183,6 +200,22 @@ class PumpPortalAnalyzer {
 									};
 								})
 								.filter(Boolean),
+							activeTracking: (() => {
+								const result = [];
+								for (const [tokenAddress, byToken] of this.tokenMonitor.activeTracking.entries()) {
+									for (const [strategyId, session] of byToken) {
+										result.push({
+											tokenAddress,
+											strategyId,
+											entryRecorded: session.entryRecorded,
+											tradeCount: session.tradeCount || 0,
+											buyCount: session.buyCount || 0,
+											sellCount: session.sellCount || 0,
+										});
+									}
+								}
+								return result;
+							})(),
 							summary: stats,
 							subscriptions: {
 								currentTokens: this.tokenMonitor.wsClient.subscribedTokens.size,
@@ -201,12 +234,14 @@ class PumpPortalAnalyzer {
 					case "/stats": {
 						// Quick statistics
 						const quickStats = this.tokenMonitor.getStats();
+						const marketTemp = this.tokenMonitor.marketTemperature.getStats();
 						res.writeHead(200);
 						res.end(
 							JSON.stringify(
 								{
 									timestamp: new Date().toISOString(),
 									uptime: process.uptime(),
+									marketTemperature: marketTemp,
 									creatorSellThreshold: config.thresholds.creatorSellThreshold,
 									trackingFilters: (() => {
 										const tf = config.trackingFilters || {};
