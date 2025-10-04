@@ -24,6 +24,9 @@ class TokenMonitor {
 			totalTrackingSessionsStarted: 0,
 		};
 
+		// Track token creation times for rate calculation
+		this.tokenCreationTimes = [];
+
 		this.setupMessageHandlers();
 	}
 
@@ -90,6 +93,18 @@ class TokenMonitor {
 			}, 0);
 			averageSellPercentage = totalPercentage / tokens.length;
 		}
+
+		// Calculate token creation rate (tokens per minute)
+		const now = Date.now();
+		const oneMinuteAgo = now - 60 * 1000;
+		const fiveMinutesAgo = now - 5 * 60 * 1000;
+		
+		// Clean old entries (older than 5 minutes)
+		this.tokenCreationTimes = this.tokenCreationTimes.filter(t => t > fiveMinutesAgo);
+		
+		const tokensLastMinute = this.tokenCreationTimes.filter(t => t > oneMinuteAgo).length;
+		const tokensLast5Minutes = this.tokenCreationTimes.length;
+		const tokensPerMinute = tokensLast5Minutes / 5; // Average over 5 minutes
 
 		// Distribución por estados de venta
 		const thr = config.thresholds.creatorSellThreshold;
@@ -205,6 +220,11 @@ class TokenMonitor {
 			totalTokensOwned,
 			totalTokensSold,
 			averageSellPercentage,
+			tokenCreationRate: {
+				tokensPerMinute,
+				tokensLastMinute,
+				tokensLast5Minutes,
+			},
 			states: {
 				safe: stateSafe,
 				watch: stateWatch,
@@ -609,6 +629,10 @@ class TokenMonitor {
 			this.wsClient.subscribeTokenTrades([tokenAddress]);
 			this.stats.totalTokensEverSubscribed++;
 			this.stats.totalNewTokensDetected++;
+			
+			// Track token creation time for rate calculation
+			this.tokenCreationTimes.push(Date.now());
+			
 			logger.debugTokenMonitor(`Subscribed to trades for new token: ${tokenName} (${tokenSymbol})`, {
 				tokenAddress,
 				creatorAddress,

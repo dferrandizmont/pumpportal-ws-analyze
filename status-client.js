@@ -5,6 +5,41 @@ import http from "http";
 // --- Formatting helpers (ES-ES, 24h, sin librerías externas) ---
 const ES_LOCALE = "es-ES";
 
+/**
+ * Get heat level based on tokens per minute rate
+ * @param {number} rate - Tokens per minute
+ * @returns {object} - { icon, label, color }
+ */
+function getHeatLevel(rate) {
+	if (rate === 0 || !isFinite(rate)) {
+		return { icon: "❄️ ", label: "FREEZE", color: "\x1b[36m", bar: "░" }; // Cyan
+	} else if (rate < 1) {
+		return { icon: "🧊", label: "COLD", color: "\x1b[34m", bar: "▒" }; // Blue
+	} else if (rate < 2) {
+		return { icon: "⚪", label: "NEUTRAL", color: "\x1b[37m", bar: "▓" }; // White
+	} else if (rate < 4) {
+		return { icon: "🔥", label: "HOT", color: "\x1b[33m", bar: "█" }; // Yellow
+	} else {
+		return { icon: "🌋", label: "BURNING", color: "\x1b[31m", bar: "█" }; // Red
+	}
+}
+
+/**
+ * Create a visual bar chart for token creation rate
+ * @param {number} rate - Tokens per minute
+ * @param {number} maxWidth - Maximum width of the bar
+ * @returns {string} - Visual bar representation
+ */
+function createRateBar(rate, maxWidth = 40) {
+	const heat = getHeatLevel(rate);
+	const normalizedRate = Math.min(rate / 6, 1); // Normalize to 0-1 (6+ tokens/min = max)
+	const filledWidth = Math.floor(normalizedRate * maxWidth);
+	const emptyWidth = maxWidth - filledWidth;
+	
+	const resetColor = "\x1b[0m";
+	return heat.color + heat.bar.repeat(filledWidth) + resetColor + "░".repeat(emptyWidth);
+}
+
 function formatNumberEs(value, options = {}) {
 	const { minimumFractionDigits, maximumFractionDigits } = options;
 	if (typeof value !== "number" || !isFinite(value)) return "0";
@@ -58,7 +93,7 @@ function formatDurationHMS(totalSeconds) {
 	return `${pad(h)}:${pad(m)}:${pad(sec)}`;
 }
 
-// Estados de venta por reglas acordadas
+// Sell state by agreed rules
 function getSellState(percentage, threshold = 80) {
 	if (!isFinite(percentage)) percentage = 0;
 	if (percentage === 0) return { icon: "🟢", label: "SAFE" };
@@ -128,15 +163,15 @@ function makeRequest(endpoint) {
 }
 
 function formatStatus(data) {
-	console.info("\n🔥 ═══ ESTADO DE TOKENS TRACKED ═══ 🔥");
-	console.info(`⏰ Fecha: ${formatDateTimeEs(data.timestamp)}`);
+	console.info("\n🔥 ═══ TRACKED TOKENS STATUS ═══ 🔥");
+	console.info(`⏰ Date: ${formatDateTimeEs(data.timestamp)}`);
 	console.info(`⏱️  Uptime: ${formatDurationHMS(data.uptime)}`);
 	if (data.solUsdPrice) {
-		const last = data.solUsdLastUpdated ? formatDateTimeEs(data.solUsdLastUpdated) : "N/D";
-		console.info(`💱 SOL/USD: ${formatCurrencyUsdEs(data.solUsdPrice)} (act.: ${last})`);
+		const last = data.solUsdLastUpdated ? formatDateTimeEs(data.solUsdLastUpdated) : "N/A";
+		console.info(`💱 SOL/USD: ${formatCurrencyUsdEs(data.solUsdPrice)} (updated: ${last})`);
 	}
 	const threshold = data.creatorSellThreshold ?? 80;
-	console.info(`🎯 Monitoreados: ${data.tokens.length}\n`);
+	console.info(`🎯 Monitored: ${data.tokens.length}\n`);
 
 	data.tokens.forEach((token, index) => {
 		const sellPct = token.sellPercentage || 0;
@@ -144,20 +179,20 @@ function formatStatus(data) {
 
 		console.info(`${index + 1}. ${state.icon} ${state.label} · ${token.name} (${token.symbol})`);
 		console.info(`   🔗 Address: ${token.address}`);
-		console.info(`   👤 Creador: ${token.creator}`);
-		console.info(`   💰 Posee: ${formatNumberEs(token.totalTokensOwned || 0)} tokens`);
-		console.info(`   📤 Vendidos: ${formatNumberEs(token.tokensSold || 0)} tokens`);
-		console.info(`   📊 Vendido: ${formatPercentEs(sellPct)} ${sellPct >= threshold && sellPct < 100 ? "🟧" : sellPct === 100 ? "🏁" : sellPct === 0 ? "🟢" : "🟨"}`);
-		const lastSellStr = token.lastSellTime ? formatTimeEs(token.lastSellTime) : "Nunca";
-		// Contexto T+segundos desde la creación si hay última venta
+		console.info(`   👤 Creator: ${token.creator}`);
+		console.info(`   💰 Holds: ${formatNumberEs(token.totalTokensOwned || 0)} tokens`);
+		console.info(`   📤 Sold: ${formatNumberEs(token.tokensSold || 0)} tokens`);
+		console.info(`   📊 Sold %: ${formatPercentEs(sellPct)} ${sellPct >= threshold && sellPct < 100 ? "🟧" : sellPct === 100 ? "🏁" : sellPct === 0 ? "🟢" : "🟨"}`);
+		const lastSellStr = token.lastSellTime ? formatTimeEs(token.lastSellTime) : "Never";
+		// T+ context in seconds since creation if there's a last sale
 		let tPlus = "";
 		if (token.lastSellTime && token.createdAt) {
 			const deltaSec = Math.max(0, Math.floor((new Date(token.lastSellTime) - new Date(token.createdAt)) / 1000));
 			tPlus = ` (T+${deltaSec} s)`;
 		}
-		console.info(`   ⏰ Última venta: ${lastSellStr}${tPlus}`);
-		console.info(`   📋 Nº ventas: ${token.totalSells}`);
-		console.info(`   🎂 Creado: ${formatDateTimeEs(token.createdAt)}`);
+		console.info(`   ⏰ Last sale: ${lastSellStr}${tPlus}`);
+		console.info(`   📋 # sales: ${token.totalSells}`);
+		console.info(`   🎂 Created: ${formatDateTimeEs(token.createdAt)}`);
 		console.info("");
 	});
 
@@ -165,82 +200,150 @@ function formatStatus(data) {
 }
 
 function formatStats(data) {
-	console.info("\n📊 ═══ PumpPortal · Live ═══ 📊");
-	console.info(`⏰ Fecha: ${formatDateTimeEs(data.timestamp)}`);
-	console.info(`⚡ Uptime: ${formatDurationHMS(data.uptime)}`);
-
+	const resetColor = "\x1b[0m";
+	const cyan = "\x1b[36m";
+	const yellow = "\x1b[33m";
+	const green = "\x1b[32m";
+	const red = "\x1b[31m";
+	const blue = "\x1b[34m";
+	const magenta = "\x1b[35m";
+	const white = "\x1b[1m";
+	const gray = "\x1b[90m";
+	
+	const separator = "═".repeat(80);
+	const thinSeparator = "─".repeat(80);
+	
+	console.info("\n" + cyan + separator + resetColor);
+	console.info(white + "🚀 PUMPPORTAL TOKEN ANALYZER · LIVE DASHBOARD 🚀" + resetColor);
+	console.info(cyan + separator + resetColor);
+	
+	// System Info Section
+	console.info(`${gray}⏰ Timestamp:${resetColor}        ${formatDateTimeEs(data.timestamp)}`);
+	console.info(`${gray}⚡ Uptime:${resetColor}           ${green}${formatDurationHMS(data.uptime)}${resetColor}`);
+	
 	if (typeof data.solUsdPrice === "number") {
-		const last = data.solUsdLastUpdated ? formatDateTimeEs(data.solUsdLastUpdated) : "N/D";
-		console.info(`💱 SOL/USD: ${formatCurrencyUsdEs(data.solUsdPrice)} (act.: ${last})`);
+		const last = data.solUsdLastUpdated ? formatDateTimeEs(data.solUsdLastUpdated) : "N/A";
+		console.info(`${gray}💱 SOL/USD:${resetColor}          ${yellow}${formatCurrencyUsdEs(data.solUsdPrice)}${resetColor} (updated: ${last})`);
 	}
-
+	
+	console.info("\n" + cyan + separator + resetColor);
+	console.info(white + "📊 TOKEN METRICS" + resetColor);
+	console.info(cyan + separator + resetColor);
+	
 	const threshold = data.creatorSellThreshold ?? 80;
 	const totalTokens = data.totalTokens || 0;
 	const tokensOverThreshold = data.tokensOverThreshold || 0;
 	const avgSell = data.averageSellPercentage || 0;
-
 	const overPct = totalTokens > 0 ? (tokensOverThreshold / totalTokens) * 100 : 0;
 	const distToThr = Math.max(0, threshold - avgSell);
-
-	console.info(`🎯 Monitoreados: ${totalTokens}`);
-	console.info(`👥 Creadores: ${data.totalCreators || 0}`);
-	console.info(`🟧 Sobre umbral (≥${threshold} %): ${tokensOverThreshold}/${totalTokens} (${formatPercentEs(overPct, 1)})`);
-	console.info(`📦 Tenencia total: ${formatNumberEs(data.totalTokensOwned || 0, { maximumFractionDigits: 3 })}`);
-	console.info(`📤 Vendidos total: ${formatNumberEs(data.totalTokensSold || 0, { maximumFractionDigits: 3 })}`);
-	console.info(`📈 Venta media creador: ${formatPercentEs(avgSell)}${distToThr > 0 ? ` (a ${formatNumberEs(distToThr, { maximumFractionDigits: 2 })} p. p. del umbral)` : ""}`);
-	console.info(`🎚️  Umbral de venta creador: ${formatPercentEs(threshold, 0)}`);
-
-	// Información de suscripciones WebSocket
-	if (data.subscriptions) {
-		const sub = data.subscriptions;
-		const wsIcon = sub.wsConnected ? "🟢" : "🔴";
-		console.info(
-			`🔌 WebSocket: ${wsIcon} ${sub.wsConnected ? "Conectado" : "Desconectado"} · Tokens actuales: ${sub.currentTokens || 0} · Total histórico: ${data.subscriptionStats?.totalTokensEverSubscribed || 0} · Cuentas suscritas: ${sub.currentAccounts || 0} · Total suscripciones: ${sub.totalSubscribed || 0}`
-		);
+	
+	console.info(`${gray}🎯 Monitored Tokens:${resetColor}     ${white}${totalTokens}${resetColor}`);
+	console.info(`${gray}👥 Unique Creators:${resetColor}      ${white}${data.totalCreators || 0}${resetColor}`);
+	
+	const riskColor = overPct > 70 ? red : overPct > 40 ? yellow : green;
+	console.info(`${gray}🟧 Over Threshold:${resetColor}       ${riskColor}${tokensOverThreshold}/${totalTokens} (${formatPercentEs(overPct, 1)})${resetColor} ${gray}(≥${threshold}%)${resetColor}`);
+	console.info(`${gray}📈 Avg Creator Sell:${resetColor}     ${white}${formatPercentEs(avgSell)}${resetColor}${distToThr > 0 ? gray + ` (-${formatNumberEs(distToThr, { maximumFractionDigits: 1 })} pp to threshold)` + resetColor : ""}`);
+	
+	// Token Creation Rate - NEW FEATURE
+	if (data.tokenCreationRate) {
+		const rate = data.tokenCreationRate;
+		const tokensPerMin = rate.tokensPerMinute || 0;
+		const heat = getHeatLevel(tokensPerMin);
+		
+		console.info("\n" + cyan + separator + resetColor);
+		console.info(white + "🔥 TOKEN CREATION RATE" + resetColor);
+		console.info(cyan + separator + resetColor);
+		
+		console.info(`${gray}📊 Rate (5min avg):${resetColor}      ${heat.color}${heat.icon} ${formatNumberEs(tokensPerMin, { maximumFractionDigits: 2 })} tokens/min ${heat.label}${resetColor}`);
+		console.info(`${gray}⏱️  Last Minute:${resetColor}         ${white}${rate.tokensLastMinute || 0} tokens${resetColor}`);
+		console.info(`${gray}⏳ Last 5 Minutes:${resetColor}       ${white}${rate.tokensLast5Minutes || 0} tokens${resetColor}`);
+		
+		// Visual bar
+		const bar = createRateBar(tokensPerMin, 70);
+		console.info(`${gray}   Activity:${resetColor}           ${bar}`);
 	}
-
-	// Estadísticas históricas de suscripciones
-	if (data.subscriptionStats) {
-		const stats = data.subscriptionStats;
-		console.info(
-			`📊 Histórico: tokens detectados=${stats.totalNewTokensDetected || 0} · tokens suscritos=${stats.totalTokensEverSubscribed || 0} · sesiones tracking=${stats.totalTrackingSessionsStarted || 0}`
-		);
-	}
-
-	// Distribución por estado (si disponible)
+	
+	console.info("\n" + cyan + separator + resetColor);
+	console.info(white + "🧭 DISTRIBUTION BY STATE" + resetColor);
+	console.info(cyan + separator + resetColor);
+	
+	// Distribution by state
 	if (data.states) {
 		const s = data.states;
-		console.info(`🧭 Estados: 🟢 SAFE: ${s.safe ?? 0}  ·  🟨 WATCH: ${s.watch ?? 0}  ·  🟧 RISK: ${s.risk ?? 0}  ·  🏁 EXITED: ${s.exited ?? 0}`);
+		const total = (s.safe ?? 0) + (s.watch ?? 0) + (s.risk ?? 0) + (s.exited ?? 0);
+		const safePct = total > 0 ? ((s.safe ?? 0) / total * 100) : 0;
+		const watchPct = total > 0 ? ((s.watch ?? 0) / total * 100) : 0;
+		const riskPct = total > 0 ? ((s.risk ?? 0) / total * 100) : 0;
+		const exitPct = total > 0 ? ((s.exited ?? 0) / total * 100) : 0;
+		
+		console.info(`${green}🟢 SAFE${resetColor} ${gray}(0%)${resetColor}                    ${white}${s.safe ?? 0}${resetColor} ${gray}(${formatPercentEs(safePct, 1)})${resetColor}`);
+		console.info(`${yellow}🟨 WATCH${resetColor} ${gray}(>0%, <${threshold}%)${resetColor}         ${white}${s.watch ?? 0}${resetColor} ${gray}(${formatPercentEs(watchPct, 1)})${resetColor}`);
+		console.info(`${red}🟧 RISK${resetColor} ${gray}(≥${threshold}%, <100%)${resetColor}        ${white}${s.risk ?? 0}${resetColor} ${gray}(${formatPercentEs(riskPct, 1)})${resetColor}`);
+		console.info(`${gray}🏁 EXITED${resetColor} ${gray}(100%)${resetColor}               ${white}${s.exited ?? 0}${resetColor} ${gray}(${formatPercentEs(exitPct, 1)})${resetColor}`);
 	}
-
-	// Métricas de alertas y salidas
+	
+	// Alerts section
 	if (data.alerts) {
 		const a = data.alerts;
-		const exitAvgUsd = typeof a.avgExitMarketCapUsd === "number" && isFinite(a.avgExitMarketCapUsd) ? formatCurrencyUsdEs(a.avgExitMarketCapUsd) : "N/D";
-		const exitSumUsd = typeof a.sumExitMarketCapUsd === "number" && isFinite(a.sumExitMarketCapUsd) ? formatCurrencyUsdEs(a.sumExitMarketCapUsd) : "N/D";
-		const exitSumSol =
-			typeof a.sumExitMarketCapSol === "number" && isFinite(a.sumExitMarketCapSol) ? `${formatNumberEs(a.sumExitMarketCapSol, { maximumFractionDigits: 6 })} SOL` : "N/D";
-		console.info(
-			`🚨 Alertas: disparadas=${a.alertedTokens ?? 0} · salidas=${a.fullyExitedTokens ?? 0} · MC salida media=${exitAvgUsd} · MC salida total=${exitSumUsd} (${exitSumSol})`
-		);
+		console.info("\n" + cyan + separator + resetColor);
+		console.info(white + "🚨 ALERTS & EXITS" + resetColor);
+		console.info(cyan + separator + resetColor);
+		
+		console.info(`${gray}📢 Alerted Tokens:${resetColor}       ${red}${a.alertedTokens ?? 0}${resetColor}`);
+		console.info(`${gray}🏁 Fully Exited:${resetColor}         ${white}${a.fullyExitedTokens ?? 0}${resetColor}`);
+		
+		if (a.fullyExitedTokens > 0) {
+			const exitAvgUsd = typeof a.avgExitMarketCapUsd === "number" && isFinite(a.avgExitMarketCapUsd) 
+				? formatCurrencyUsdEs(a.avgExitMarketCapUsd) 
+				: "N/A";
+			const exitSumUsd = typeof a.sumExitMarketCapUsd === "number" && isFinite(a.sumExitMarketCapUsd) 
+				? formatCurrencyUsdEs(a.sumExitMarketCapUsd) 
+				: "N/A";
+			
+			console.info(`${gray}💰 Avg Exit MC:${resetColor}          ${yellow}${exitAvgUsd}${resetColor}`);
+			console.info(`${gray}💵 Total Exit MC:${resetColor}        ${yellow}${exitSumUsd}${resetColor}`);
+		}
 	}
-
-	// Tracking activo por estrategia
+	
+	// WebSocket Info
+	console.info("\n" + cyan + separator + resetColor);
+	console.info(white + "🔌 WEBSOCKET STATUS" + resetColor);
+	console.info(cyan + separator + resetColor);
+	
+	if (data.subscriptions) {
+		const sub = data.subscriptions;
+		const wsStatus = sub.wsConnected ? green + "🟢 CONNECTED" + resetColor : red + "🔴 DISCONNECTED" + resetColor;
+		console.info(`${gray}Status:${resetColor}               ${wsStatus}`);
+		console.info(`${gray}📊 Subscribed Tokens:${resetColor}    ${white}${sub.currentTokens || 0}${resetColor}`);
+		console.info(`${gray}👤 Subscribed Accounts:${resetColor}  ${white}${sub.currentAccounts || 0}${resetColor}`);
+		console.info(`${gray}📈 Total Historical:${resetColor}     ${white}${data.subscriptionStats?.totalTokensEverSubscribed || 0}${resetColor}`);
+	}
+	
+	// Tracking section - ALWAYS show
 	if (data.tracking) {
+		console.info("\n" + cyan + separator + resetColor);
+		console.info(white + "🧪 ACTIVE TRACKING" + resetColor);
+		console.info(cyan + separator + resetColor);
+		
 		const t = data.tracking;
-		console.info(`🧪 Tracking activo: tokens=${t.totalActiveTokens ?? 0} · sesiones=${t.totalActiveSessions ?? 0}`);
+		console.info(`${gray}Active Tokens:${resetColor}         ${magenta}${t.totalActiveTokens ?? 0}${resetColor}`);
+		console.info(`${gray}Active Sessions:${resetColor}       ${magenta}${t.totalActiveSessions ?? 0}${resetColor}`);
+		
 		if (t.byStrategy && typeof t.byStrategy === "object") {
+			console.info(`\n${gray}${thinSeparator}${resetColor}`);
 			const entries = Object.entries(t.byStrategy).sort((a, b) => a[0].localeCompare(b[0]));
 			for (const [sid, v] of entries) {
-				const avgMax = typeof v.avgMaxPct === "number" && isFinite(v.avgMaxPct) ? formatPercentEs(v.avgMaxPct) : "N/D";
-				const avgMin = typeof v.avgMinPct === "number" && isFinite(v.avgMinPct) ? formatPercentEs(v.avgMinPct) : "N/D";
-				console.info(
-					`   • ${sid}: sesiones=${v.sessions ?? 0}, entradas=${v.entriesRecorded ?? 0}, sin-trades=${v.noPostTrades ?? 0}, trades=${v.tradeCountTotal ?? 0}, avgMax=${avgMax}, avgMin=${avgMin}`
-				);
+				const avgMax = typeof v.avgMaxPct === "number" && isFinite(v.avgMaxPct) ? formatPercentEs(v.avgMaxPct) : "N/A";
+				const avgMin = typeof v.avgMinPct === "number" && isFinite(v.avgMinPct) ? formatPercentEs(v.avgMinPct) : "N/A";
+				console.info(`${blue}• ${sid}${resetColor}`);
+				console.info(`  ${gray}sessions=${v.sessions ?? 0}, entries=${v.entriesRecorded ?? 0}, no-trades=${v.noPostTrades ?? 0}, trades=${v.tradeCountTotal ?? 0}${resetColor}`);
+				console.info(`  ${gray}avgMax=${avgMax}, avgMin=${avgMin}${resetColor}`);
 			}
 		}
 	}
-	console.info("═════════════════════════════════════════════\n");
+	
+	console.info(cyan + separator + resetColor);
+	console.info("");
 }
 
 function formatHealth(data) {
